@@ -10,19 +10,35 @@ function fmt(n: number) {
 
 function AccountRow({ account }: { account: FinancialAccount }) {
   const balance = account.current_balance
+  const isCredit = account.account_type === 'credit'
   return (
-    <div className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
-      <div className="flex flex-col gap-0.5">
-        <span className="text-sm font-medium text-gray-800">
-          {account.account_name}
-        </span>
-        <span className="text-xs text-gray-400">
-          {account.institution_name}
+    <div className="flex items-center justify-between py-4 border-b border-ink-border/60 last:border-0 group">
+      <div className="flex flex-col gap-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-sm text-parchment truncate">
+            {account.account_name}
+          </span>
+          <Badge variant={account.sync_status === 'ok' || account.sync_status === 'manual' ? 'success' : 'default'}>
+            {account.account_type}
+          </Badge>
+        </div>
+        <span className="font-mono text-xs text-parchment-dim">
+          {account.institution_name || 'Manual'}
+          {account.last_four ? ` ····${account.last_four}` : ''}
         </span>
       </div>
-      <div className="flex items-center gap-3">
-        <Badge variant="success">{account.account_type}</Badge>
-        <span className="text-sm font-semibold text-gray-900">
+      <div className="flex items-center gap-4 shrink-0 ml-4">
+        <span className="font-mono text-xs text-parchment-dim">
+          {account.sync_status}
+        </span>
+        <span
+          className={`font-display text-xl ${
+            balance != null && ((isCredit && balance > 0) || (!isCredit && balance < 0))
+              ? 'text-coral'
+              : 'text-parchment'
+          }`}
+          style={{ fontVariationSettings: '"opsz" 24, "wght" 400' }}
+        >
           {balance != null && !isNaN(balance) ? fmt(balance) : '—'}
         </span>
       </div>
@@ -34,32 +50,57 @@ export default function Accounts() {
   const { data, isLoading, isError } = useAccounts()
   const [showAdd, setShowAdd] = useState(false)
 
+  const totalBalance = (data ?? []).reduce((s, a) => s + (a.current_balance ?? 0), 0)
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
+    <div className="flex flex-col gap-8">
+      <div className="flex items-end justify-between animate-fade-up">
+        <div>
+          <p className="font-mono text-xs text-parchment-dim uppercase tracking-widest mb-1">Your</p>
+          <h1
+            className="font-display text-4xl text-parchment leading-none"
+            style={{ fontVariationSettings: '"opsz" 72, "wght" 300', fontStyle: 'italic' }}
+          >
+            Accounts
+          </h1>
+        </div>
         <button
           onClick={() => setShowAdd(true)}
-          className="px-4 py-2 text-sm rounded-md bg-brand-600 text-white font-medium hover:bg-brand-700"
+          className="font-mono text-xs px-4 py-2 rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors"
         >
-          + Add Account
+          + add account
         </button>
       </div>
+
       {showAdd && <AddAccountModal onClose={() => setShowAdd(false)} />}
 
       {isLoading ? (
         <Spinner />
       ) : isError ? (
-        <p className="text-sm text-red-500">Failed to load accounts.</p>
+        <p className="text-sm font-mono text-coral">Failed to load accounts.</p>
       ) : data?.length === 0 ? (
-        <EmptyState message="No accounts yet. Run POST /dev/seed to add sample data." />
+        <EmptyState message="No accounts yet." />
       ) : (
-        <Card>
-          {data!.map((a) => (
-            <AccountRow key={a.id} account={a} />
-          ))}
-        </Card>
+        <>
+          {/* Summary strip */}
+          <div className="animate-fade-up delay-1 font-mono text-xs text-parchment-dim border border-ink-border rounded-lg px-4 py-3 bg-ink-card/50 flex items-center justify-between">
+            <span>{data!.length} account{data!.length !== 1 ? 's' : ''}</span>
+            <span>
+              Total{' '}
+              <span className="text-gold font-medium">{fmt(totalBalance)}</span>
+            </span>
+          </div>
+
+          <Card className="animate-fade-up delay-2 p-0 overflow-hidden">
+            <div className="px-5">
+              {data!.map((a) => (
+                <AccountRow key={a.id} account={a} />
+              ))}
+            </div>
+          </Card>
+        </>
       )}
     </div>
   )
 }
+

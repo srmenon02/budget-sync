@@ -2,7 +2,10 @@ import React from 'react'
 
 export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 ${className}`}>
+    <div
+      className={`rounded-xl border border-ink-border bg-ink-card p-5 ${className}`}
+      style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
+    >
       {children}
     </div>
   )
@@ -10,8 +13,8 @@ export function Card({ children, className = '' }: { children: React.ReactNode; 
 
 export function Spinner() {
   return (
-    <div className="flex justify-center items-center py-12">
-      <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
+    <div className="flex justify-center items-center py-16">
+      <div className="w-5 h-5 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
     </div>
   )
 }
@@ -23,20 +26,21 @@ export function Badge({
   children: React.ReactNode
   variant?: 'default' | 'success' | 'warning' | 'error'
 }) {
-  const base = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium'
+  const base = 'inline-flex items-center px-2 py-0.5 rounded font-mono text-xs tracking-wide uppercase'
   const variants = {
-    default: 'bg-gray-100 text-gray-700',
-    success: 'bg-brand-100 text-brand-700',
-    warning: 'bg-yellow-100 text-yellow-700',
-    error: 'bg-red-100 text-red-700',
+    default: 'bg-ink-raised text-parchment-muted border border-ink-border',
+    success: 'bg-jade/10 text-jade border border-jade/20',
+    warning: 'bg-gold/10 text-gold border border-gold/20',
+    error: 'bg-coral/10 text-coral border border-coral/20',
   }
   return <span className={`${base} ${variants[variant]}`}>{children}</span>
 }
 
 export function EmptyState({ message }: { message: string }) {
   return (
-    <div className="text-center py-16 text-gray-400">
-      <p className="text-sm">{message}</p>
+    <div className="text-center py-20 border border-dashed border-ink-border rounded-xl">
+      <div className="text-3xl mb-3 opacity-20">◈</div>
+      <p className="text-sm font-mono text-parchment-dim">{message}</p>
     </div>
   )
 }
@@ -52,15 +56,27 @@ export function Modal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+      <div
+        className="w-full max-w-md rounded-xl border border-ink-border p-6 animate-fade-up"
+        style={{
+          background: 'linear-gradient(160deg, #1e1e28 0%, #141418 100%)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)',
+        }}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2
+            className="font-display text-xl text-parchment"
+            style={{ fontVariationSettings: '"opsz" 30, "wght" 500', fontStyle: 'italic' }}
+          >
+            {title}
+          </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            className="text-parchment-dim hover:text-parchment transition-colors text-xl leading-none font-mono"
             aria-label="Close"
           >
             ×
@@ -71,3 +87,4 @@ export function Modal({
     </div>
   )
 }
+

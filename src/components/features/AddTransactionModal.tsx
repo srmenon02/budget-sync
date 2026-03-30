@@ -58,8 +58,8 @@ export function AddTransactionModal({ onClose }: Props) {
         onSubmit={(e) => { e.preventDefault(); setError(null); mutation.mutate() }}
         className="flex flex-col gap-4"
       >
-        <label className="text-sm text-gray-700">
-          Amount (USD) *
+        <label className="flex flex-col gap-1.5">
+          <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Amount (USD) *</span>
           <input
             required
             type="number"
@@ -67,47 +67,42 @@ export function AddTransactionModal({ onClose }: Props) {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="-12.50 (negative = expense)"
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </label>
 
-        <label className="text-sm text-gray-700">
-          Date *
+        <label className="flex flex-col gap-1.5">
+          <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Date *</span>
           <input
             required
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </label>
 
-        <label className="text-sm text-gray-700">
-          Merchant
+        <label className="flex flex-col gap-1.5">
+          <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Merchant</span>
           <input
             value={merchant}
             onChange={(e) => setMerchant(e.target.value)}
             placeholder="e.g. Whole Foods"
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </label>
 
-        <label className="text-sm text-gray-700">
-          Description
+        <label className="flex flex-col gap-1.5">
+          <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Description</span>
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Optional note"
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </label>
 
-        <label className="text-sm text-gray-700">
-          Category
+        <label className="flex flex-col gap-1.5">
+          <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Category</span>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
           >
             <option value="">— None —</option>
             {CATEGORIES.map((c) => (
@@ -116,15 +111,14 @@ export function AddTransactionModal({ onClose }: Props) {
           </select>
         </label>
 
-        <label className="text-sm text-gray-700">
-          Account
+        <label className="flex flex-col gap-1.5">
+          <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Account</span>
           {accountsLoading ? (
             <div className="mt-1"><Spinner /></div>
           ) : (
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
             >
               <option value="">— None —</option>
               {accounts?.map((a) => (
@@ -134,31 +128,31 @@ export function AddTransactionModal({ onClose }: Props) {
           )}
         </label>
 
-        <label className="text-sm text-gray-700">
-          Notes
+        <label className="flex flex-col gap-1.5">
+          <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Notes</span>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             placeholder="Any additional notes"
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+            className="resize-none"
           />
         </label>
 
-        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        {error ? <p className="font-mono text-xs text-coral border border-coral/20 bg-coral/5 rounded-lg px-3 py-2">{error}</p> : null}
 
         <div className="flex gap-2 justify-end pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 font-mono text-xs rounded-lg border border-ink-border text-parchment-muted hover:text-parchment transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="px-4 py-2 text-sm rounded-md bg-brand-600 text-white font-medium hover:bg-brand-700 disabled:opacity-60"
+            className="px-4 py-2 font-mono text-xs rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
           >
             {mutation.isPending ? 'Adding…' : 'Add Transaction'}
           </button>

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { isAxiosError } from 'axios'
 import { login } from '@/api/auth'
-import { Card } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 
 function extractErrorMessage(err: unknown): string | null {
@@ -67,52 +66,88 @@ export default function Login({ onSuccess, onNavigateRegister }: LoginProps) {
   }
 
   return (
-    <div className="max-w-md mx-auto py-10">
-      <Card className="p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Sign In</h1>
-        <p className="text-sm text-gray-500 mt-1">Welcome back to BudgetSync.</p>
-
-        <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
-          <label className="text-sm text-gray-700">
-            Email
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </label>
-
-          <label className="text-sm text-gray-700">
-            Password
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </label>
-
-          {error ? <p className="text-sm text-red-500">{error}</p> : null}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-md bg-brand-600 text-white text-sm font-medium px-4 py-2 hover:bg-brand-700 disabled:opacity-60"
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-sm animate-fade-up">
+        {/* Logo */}
+        <div className="text-center mb-10">
+          <span
+            className="font-display text-5xl text-gold"
+            style={{ fontVariationSettings: '"opsz" 72, "wght" 500', fontStyle: 'italic' }}
           >
-            {isSubmitting ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            Ledger
+          </span>
+          <p className="font-mono text-xs text-parchment-dim mt-2 uppercase tracking-widest">
+            personal finance sync
+          </p>
+        </div>
 
-        <p className="mt-4 text-sm text-gray-600">
-          Need an account?{' '}
-          <button onClick={onNavigateRegister} className="text-brand-600 hover:text-brand-700 font-medium">
-            Register
-          </button>
-        </p>
-      </Card>
+        {/* Card */}
+        <div
+          className="rounded-2xl border border-ink-border p-8 flex flex-col gap-5"
+          style={{
+            background: 'linear-gradient(160deg, #1e1e28 0%, #141418 100%)',
+            boxShadow: '0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+          }}
+        >
+          <div>
+            <h1
+              className="font-display text-2xl text-parchment"
+              style={{ fontVariationSettings: '"opsz" 32, "wght" 400', fontStyle: 'italic' }}
+            >
+              Welcome back
+            </h1>
+            <p className="font-mono text-xs text-parchment-dim mt-1">sign in to your account</p>
+          </div>
+
+          <form onSubmit={onSubmit} className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1.5">
+              <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Email</span>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Password</span>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </label>
+
+            {error ? (
+              <p className="font-mono text-xs text-coral border border-coral/20 bg-coral/5 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="mt-1 w-full rounded-lg bg-gold text-ink font-mono text-sm font-medium py-2.5 hover:bg-gold-dim transition-colors disabled:opacity-50"
+            >
+              {isSubmitting ? 'signing in…' : 'sign in →'}
+            </button>
+          </form>
+
+          <p className="font-mono text-xs text-parchment-dim text-center">
+            no account?{' '}
+            <button
+              onClick={onNavigateRegister}
+              className="text-gold hover:text-gold-dim transition-colors"
+            >
+              register
+            </button>
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

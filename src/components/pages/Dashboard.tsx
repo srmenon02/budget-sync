@@ -7,34 +7,50 @@ function fmt(amount: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 }
 
-function AccountCard({ account }: { account: FinancialAccount }) {
+function AccountCard({ account, index }: { account: FinancialAccount; index: number }) {
+  const delayClass = ['delay-1', 'delay-2', 'delay-3', 'delay-4', 'delay-5'][index] ?? 'delay-5'
   return (
-    <Card className="flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-700 truncate">{account.account_name}</span>
-        <Badge variant="success">{account.account_type}</Badge>
+    <div
+      className={`rounded-xl border border-ink-border bg-ink-card p-4 flex flex-col gap-3 animate-fade-up ${delayClass} hover:border-gold/30 transition-colors duration-200`}
+      style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)' }}
+    >
+      <div className="flex items-start justify-between">
+        <span className="font-mono text-xs text-parchment-muted uppercase tracking-widest">
+          {account.institution_name || 'Account'}
+        </span>
+        <Badge variant="default">{account.account_type}</Badge>
       </div>
-      <p className="text-2xl font-bold text-gray-900">
-        {account.current_balance != null ? fmt(account.current_balance) : '—'}
-      </p>
-      <p className="text-xs text-gray-400">{account.institution_name}</p>
-    </Card>
+      <div>
+        <p className="font-display text-2xl text-parchment leading-tight"
+          style={{ fontVariationSettings: '"opsz" 28, "wght" 400' }}>
+          {account.current_balance != null ? fmt(account.current_balance) : '—'}
+        </p>
+        <p className="font-mono text-xs text-parchment-dim mt-1 truncate">{account.account_name}</p>
+      </div>
+      <div className="h-px bg-ink-border" />
+      <span className={`font-mono text-xs ${account.sync_status === 'ok' || account.sync_status === 'manual' ? 'text-jade' : 'text-parchment-dim'}`}>
+        ● {account.sync_status}
+      </span>
+    </div>
   )
 }
 
 function TransactionRow({ tx }: { tx: Transaction }) {
   const amount = tx.amount ?? 0
+  const isExpense = amount < 0
   return (
-    <div className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-      <div className="flex flex-col">
-        <span className="text-sm font-medium text-gray-800">
+    <div className="flex items-center justify-between py-3 border-b border-ink-border/60 last:border-0">
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="font-mono text-sm text-parchment truncate">
           {tx.merchant_name ?? tx.description ?? 'Transaction'}
         </span>
-        <span className="text-xs text-gray-400">
-          {tx.category ?? 'Uncategorized'} · {tx.transaction_date}
+        <span className="font-mono text-xs text-parchment-dim">
+          {tx.category ? <span className="text-gold/70">{tx.category}</span> : null}
+          {tx.category ? ' · ' : ''}
+          {tx.transaction_date}
         </span>
       </div>
-      <span className={`text-sm font-semibold ${amount < 0 ? 'text-red-500' : 'text-brand-600'}`}>
+      <span className={`font-mono text-sm font-medium ml-4 shrink-0 ${isExpense ? 'text-coral' : 'text-jade'}`}>
         {fmt(amount)}
       </span>
     </div>
@@ -49,52 +65,82 @@ export default function Dashboard() {
     return sum + (a.current_balance ?? 0)
   }, 0)
 
+  const totalExpenses = (transactions.data ?? [])
+    .filter(t => (t.amount ?? 0) < 0)
+    .reduce((s, t) => s + Math.abs(t.amount ?? 0), 0)
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Total balance across all accounts
+      <div className="animate-fade-up">
+        <p className="font-mono text-xs text-parchment-dim uppercase tracking-widest mb-1">
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </p>
+        <h1
+          className="font-display text-4xl text-parchment leading-none"
+          style={{ fontVariationSettings: '"opsz" 72, "wght" 300', fontStyle: 'italic' }}
+        >
+          Overview
+        </h1>
       </div>
 
-      {/* Total balance */}
-      <Card className="bg-brand-600 border-0 text-white">
-        <p className="text-sm opacity-80">Net Worth</p>
-        <p className="text-4xl font-bold mt-1">{fmt(totalBalance)}</p>
-        <p className="text-xs opacity-60 mt-1">
-          {accounts.data?.length ?? 0} account{accounts.data?.length !== 1 ? 's' : ''} connected
-        </p>
-      </Card>
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 gap-4 animate-fade-up delay-1">
+        <Card className="border-gold/20 relative overflow-hidden">
+          <div
+            className="absolute inset-0 opacity-10"
+            style={{ background: 'radial-gradient(circle at 80% 50%, #e8b84b, transparent 70%)' }}
+          />
+          <p className="font-mono text-xs text-parchment-muted uppercase tracking-widest mb-1 relative">Net Worth</p>
+          <p
+            className="font-display text-3xl text-gold relative"
+            style={{ fontVariationSettings: '"opsz" 48, "wght" 500' }}
+          >
+            {fmt(totalBalance)}
+          </p>
+          <p className="font-mono text-xs text-parchment-dim mt-1 relative">
+            {accounts.data?.length ?? 0} account{accounts.data?.length !== 1 ? 's' : ''}
+          </p>
+        </Card>
+        <Card>
+          <p className="font-mono text-xs text-parchment-muted uppercase tracking-widest mb-1">Recent Spend</p>
+          <p
+            className="font-display text-3xl text-coral"
+            style={{ fontVariationSettings: '"opsz" 48, "wght" 500' }}
+          >
+            {fmt(totalExpenses)}
+          </p>
+          <p className="font-mono text-xs text-parchment-dim mt-1">last 10 transactions</p>
+        </Card>
+      </div>
 
       {/* Accounts */}
-      <section>
-        <h2 className="text-base font-semibold text-gray-700 mb-3">Accounts</h2>
+      <section className="animate-fade-up delay-2">
+        <h2 className="font-mono text-xs text-parchment-dim uppercase tracking-widest mb-4">Accounts</h2>
         {accounts.isLoading ? (
           <Spinner />
         ) : accounts.isError ? (
-          <p className="text-sm text-red-500">Failed to load accounts.</p>
+          <p className="text-sm font-mono text-coral">Failed to load accounts.</p>
         ) : accounts.data?.length === 0 ? (
           <EmptyState message="No accounts yet. Seed some data or connect a bank account." />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {accounts.data!.map((a) => (
-              <AccountCard key={a.id} account={a} />
+            {accounts.data!.map((a, i) => (
+              <AccountCard key={a.id} account={a} index={i} />
             ))}
           </div>
         )}
       </section>
 
       {/* Recent transactions */}
-      <section>
-        <h2 className="text-base font-semibold text-gray-700 mb-3">Recent Transactions</h2>
+      <section className="animate-fade-up delay-3">
+        <h2 className="font-mono text-xs text-parchment-dim uppercase tracking-widest mb-4">Recent Transactions</h2>
         {transactions.isLoading ? (
           <Spinner />
         ) : transactions.isError ? (
-          <p className="text-sm text-red-500">Failed to load transactions.</p>
+          <p className="text-sm font-mono text-coral">Failed to load transactions.</p>
         ) : transactions.data?.length === 0 ? (
-          <EmptyState message="No transactions yet. POST /dev/seed to populate sample data." />
+          <EmptyState message="No transactions yet." />
         ) : (
           <Card>
             {transactions.data!.map((tx) => (
@@ -106,3 +152,4 @@ export default function Dashboard() {
     </div>
   )
 }
+

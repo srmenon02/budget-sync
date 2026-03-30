@@ -8,7 +8,7 @@ const Login = lazy(() => import('./components/pages/Login'))
 const Register = lazy(() => import('./components/pages/Register'))
 
 const NAV = [
-  { label: 'Dashboard', path: '/' },
+  { label: 'Overview', path: '/' },
   { label: 'Accounts', path: '/accounts' },
   { label: 'Transactions', path: '/transactions' },
 ]
@@ -61,65 +61,96 @@ export default function App() {
     return getPage(path)
   }
 
+  const isActive = (navPath: string) =>
+    navPath === '/' ? path === '/' : path.startsWith(navPath)
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top nav */}
-      <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-6">
-        <span className="text-brand-600 font-bold text-lg">BudgetSync</span>
-        {token ? (
-          <>
-            <div className="flex gap-4">
+    <div className="min-h-screen">
+      {/* Sidebar nav — desktop; top bar on mobile */}
+      {token ? (
+        <div className="flex min-h-screen">
+          {/* Sidebar */}
+          <aside className="hidden md:flex flex-col w-52 shrink-0 border-r border-ink-border bg-ink-card/60 backdrop-blur-sm fixed h-full z-20">
+            {/* Logo */}
+            <div className="px-6 pt-7 pb-8">
+              <div className="flex items-baseline gap-1">
+                <span
+                  className="font-display text-2xl text-gold leading-none"
+                  style={{ fontVariationSettings: '"opsz" 40, "wght" 600', fontStyle: 'italic' }}
+                >
+                  Ledger
+                </span>
+                <span className="text-parchment-dim text-xs tracking-widest uppercase ml-1 mb-0.5 font-mono">sync</span>
+              </div>
+            </div>
+
+            {/* Nav links */}
+            <nav className="flex flex-col gap-1 px-3 flex-1">
               {NAV.map((n) => (
                 <button
                   key={n.path}
                   onClick={() => navigate(n.path)}
-                  className={`text-sm font-medium transition-colors ${
-                    (n.path === '/' ? path === '/' : path.startsWith(n.path))
-                      ? 'text-brand-600'
-                      : 'text-gray-500 hover:text-gray-800'
+                  className={`text-left text-sm px-3 py-2 rounded-lg transition-all duration-150 font-mono ${
+                    isActive(n.path)
+                      ? 'text-gold bg-gold-faint border border-gold/20'
+                      : 'text-parchment-muted hover:text-parchment hover:bg-ink-raised'
                   }`}
                 >
                   {n.label}
                 </button>
               ))}
-            </div>
-            <div className="ml-auto flex items-center gap-3">
-              <span className="text-xs text-gray-500">{email}</span>
+            </nav>
+
+            {/* Footer */}
+            <div className="px-4 pb-6 border-t border-ink-border pt-4">
+              <p className="text-parchment-dim text-xs font-mono truncate mb-2">{email}</p>
               <button
-                onClick={() => {
-                  logout()
-                  navigate('/login')
-                }}
-                className="text-sm px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                onClick={() => { logout(); navigate('/login') }}
+                className="text-xs text-parchment-dim hover:text-coral transition-colors font-mono"
               >
-                Logout
+                sign out ↗
               </button>
             </div>
-          </>
-        ) : (
-          <div className="ml-auto flex gap-2">
-            <button
-              onClick={() => navigate('/login')}
-              className={`text-sm px-3 py-1.5 rounded-md border ${path === '/login' ? 'border-brand-500 text-brand-700' : 'border-gray-300 text-gray-700'}`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => navigate('/register')}
-              className={`text-sm px-3 py-1.5 rounded-md border ${path === '/register' ? 'border-brand-500 text-brand-700' : 'border-gray-300 text-gray-700'}`}
-            >
-              Register
-            </button>
-          </div>
-        )}
-      </nav>
+          </aside>
 
-      {/* Page */}
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        <Suspense fallback={<div className="text-center py-20 text-gray-400">Loading…</div>}>
+          {/* Mobile top bar */}
+          <header className="md:hidden fixed top-0 left-0 right-0 z-20 bg-ink-card/80 backdrop-blur-md border-b border-ink-border flex items-center px-4 h-12">
+            <span className="font-display text-xl text-gold italic" style={{ fontVariationSettings: '"opsz" 40, "wght" 600' }}>
+              Ledger
+            </span>
+            <div className="flex gap-3 ml-6">
+              {NAV.map((n) => (
+                <button
+                  key={n.path}
+                  onClick={() => navigate(n.path)}
+                  className={`text-xs font-mono transition-colors ${isActive(n.path) ? 'text-gold' : 'text-parchment-muted'}`}
+                >
+                  {n.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => { logout(); navigate('/login') }}
+              className="ml-auto text-xs text-parchment-dim hover:text-coral font-mono transition-colors"
+            >
+              out ↗
+            </button>
+          </header>
+
+          {/* Main content */}
+          <main className="flex-1 md:ml-52 min-h-screen pt-12 md:pt-0">
+            <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
+              <Suspense fallback={<div className="text-parchment-dim font-mono text-sm py-20 text-center">loading…</div>}>
+                {renderPage()}
+              </Suspense>
+            </div>
+          </main>
+        </div>
+      ) : (
+        <Suspense fallback={<div className="text-parchment-dim font-mono text-sm py-20 text-center">loading…</div>}>
           {renderPage()}
         </Suspense>
-      </main>
+      )}
     </div>
   )
 }
