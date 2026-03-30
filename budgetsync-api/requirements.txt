@@ -4,13 +4,14 @@ sqlalchemy[asyncio]
 asyncpg
 aiosqlite
 alembic
-pydantic
+pydantic[email]
 python-dotenv
 httpx
 apscheduler
-python-jose
+python-jose[cryptography]
 passlib[bcrypt]
 cryptography
+supabase
 pytest
 pytest-asyncio
 pytest-cov

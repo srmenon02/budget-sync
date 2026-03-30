@@ -1,5 +1,5 @@
 import client from './client'
-import type { FinancialAccount } from '@/types'
+import type { FinancialAccount } from '@/components/index'
 
 export const fetchAccounts = async (): Promise<FinancialAccount[]> => {
   const { data } = await client.get<FinancialAccount[]>('/accounts/')

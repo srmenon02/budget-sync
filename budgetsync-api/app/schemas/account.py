@@ -15,5 +15,4 @@ class AccountRead(AccountCreate):
     id: str
     user_id: str
 
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}

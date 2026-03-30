@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from .routers import accounts_router, bank_sync_router, dev_router, transactions_router
+from .routers import auth_router, accounts_router, bank_sync_router, dev_router, transactions_router
 from .services.bank_sync import run_periodic_sync
 
 app = FastAPI(title="BudgetSync API - MVP")
@@ -33,6 +33,7 @@ async def health():
 
 
 # include routers
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(transactions_router, prefix="/transactions", tags=["transactions"])
 app.include_router(accounts_router, prefix="/accounts", tags=["accounts"])
 app.include_router(bank_sync_router, prefix="/bank-sync", tags=["bank-sync"])

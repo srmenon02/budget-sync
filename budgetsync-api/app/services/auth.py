@@ -1,0 +1,101 @@
+import os
+
+from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from supabase import AsyncClient, acreate_client as create_async_client
+
+from ..models.user import User
+from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest
+
+
+def _get_supabase_url() -> str:
+    url = os.getenv("SUPABASE_URL", "")
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SUPABASE_URL is not configured",
+        )
+    return url
+
+
+def _get_supabase_anon_key() -> str:
+    key = os.getenv("SUPABASE_ANON_KEY", "")
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SUPABASE_ANON_KEY is not configured",
+        )
+    return key
+
+
+async def _client() -> AsyncClient:
+    return await create_async_client(_get_supabase_url(), _get_supabase_anon_key())
+
+
+async def register(
+    payload: RegisterRequest, db: AsyncSession
+) -> AuthResponse:
+    """Create a new Supabase auth user and mirror into local users table."""
+    sb = await _client()
+    try:
+        response = await sb.auth.sign_up(
+            {"email": payload.email, "password": payload.password}
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    if response.user is None or response.session is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Registration failed — check your email or password requirements",
+        )
+
+    user_id = str(response.user.id)
+    email = response.user.email or payload.email
+
+    # Upsert local user record (idempotent on re-registration)
+    local_user = User(
+        id=user_id,
+        email=email,
+        display_name=payload.display_name,
+    )
+    db.add(local_user)
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()  # user may already exist; not fatal
+
+    return AuthResponse(
+        access_token=response.session.access_token,
+        user_id=user_id,
+        email=email,
+    )
+
+
+async def login(payload: LoginRequest) -> AuthResponse:
+    """Sign in with email + password via Supabase and return the JWT."""
+    sb = await _client()
+    try:
+        response = await sb.auth.sign_in_with_password(
+            {"email": payload.email, "password": payload.password}
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        ) from exc
+
+    if response.session is None or response.user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    return AuthResponse(
+        access_token=response.session.access_token,
+        user_id=str(response.user.id),
+        email=response.user.email or payload.email,
+    )

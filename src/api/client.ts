@@ -1,6 +1,12 @@
 import axios, { type AxiosError } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
 
+declare global {
+  interface ImportMeta {
+    env: Record<string, string | undefined>
+  }
+}
+
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
   timeout: 10000,
