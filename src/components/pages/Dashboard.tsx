@@ -11,7 +11,7 @@ function AccountCard({ account, index }: { account: FinancialAccount; index: num
   const delayClass = ['delay-1', 'delay-2', 'delay-3', 'delay-4', 'delay-5'][index] ?? 'delay-5'
   return (
     <div
-      className={`rounded-xl border border-ink-border bg-ink-card p-4 flex flex-col gap-3 animate-fade-up ${delayClass} hover:border-gold/30 transition-colors duration-200`}
+      className={`rounded-xl border border-ink-border bg-ink-card p-5 flex flex-col gap-3.5 animate-fade-up ${delayClass} hover:border-gold/30 transition-colors duration-200`}
       style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)' }}
     >
       <div className="flex items-start justify-between">
@@ -70,14 +70,14 @@ export default function Dashboard() {
     .reduce((s, t) => s + Math.abs(t.amount ?? 0), 0)
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="app-page">
       {/* Header */}
       <div className="animate-fade-up">
-        <p className="font-mono text-xs text-parchment-dim uppercase tracking-widest mb-1">
+        <p className="section-kicker mb-2">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </p>
         <h1
-          className="font-display text-4xl text-parchment leading-none"
+          className="font-display text-4xl md:text-5xl text-parchment leading-none"
           style={{ fontVariationSettings: '"opsz" 72, "wght" 300', fontStyle: 'italic' }}
         >
           Overview
@@ -85,38 +85,38 @@ export default function Dashboard() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-4 animate-fade-up delay-1">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 animate-fade-up delay-1">
         <Card className="border-gold/20 relative overflow-hidden">
           <div
             className="absolute inset-0 opacity-10"
             style={{ background: 'radial-gradient(circle at 80% 50%, #e8b84b, transparent 70%)' }}
           />
-          <p className="font-mono text-xs text-parchment-muted uppercase tracking-widest mb-1 relative">Net Worth</p>
+          <p className="section-kicker mb-2 relative">Net Worth</p>
           <p
-            className="font-display text-3xl text-gold relative"
+            className="font-display text-3xl md:text-[2.1rem] text-gold relative"
             style={{ fontVariationSettings: '"opsz" 48, "wght" 500' }}
           >
             {fmt(totalBalance)}
           </p>
-          <p className="font-mono text-xs text-parchment-dim mt-1 relative">
+          <p className="font-mono text-xs text-parchment-dim mt-2 relative">
             {accounts.data?.length ?? 0} account{accounts.data?.length !== 1 ? 's' : ''}
           </p>
         </Card>
         <Card>
-          <p className="font-mono text-xs text-parchment-muted uppercase tracking-widest mb-1">Recent Spend</p>
+          <p className="section-kicker mb-2">Recent Spend</p>
           <p
-            className="font-display text-3xl text-coral"
+            className="font-display text-3xl md:text-[2.1rem] text-coral"
             style={{ fontVariationSettings: '"opsz" 48, "wght" 500' }}
           >
             {fmt(totalExpenses)}
           </p>
-          <p className="font-mono text-xs text-parchment-dim mt-1">last 10 transactions</p>
+          <p className="font-mono text-xs text-parchment-dim mt-2">last 10 transactions</p>
         </Card>
       </div>
 
       {/* Accounts */}
-      <section className="animate-fade-up delay-2">
-        <h2 className="font-mono text-xs text-parchment-dim uppercase tracking-widest mb-4">Accounts</h2>
+      <section className="app-section animate-fade-up delay-2">
+        <h2 className="section-kicker">Accounts</h2>
         {accounts.isLoading ? (
           <Spinner />
         ) : accounts.isError ? (
@@ -124,7 +124,7 @@ export default function Dashboard() {
         ) : accounts.data?.length === 0 ? (
           <EmptyState message="No accounts yet. Seed some data or connect a bank account." />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {accounts.data!.map((a, i) => (
               <AccountCard key={a.id} account={a} index={i} />
             ))}
@@ -133,8 +133,8 @@ export default function Dashboard() {
       </section>
 
       {/* Recent transactions */}
-      <section className="animate-fade-up delay-3">
-        <h2 className="font-mono text-xs text-parchment-dim uppercase tracking-widest mb-4">Recent Transactions</h2>
+      <section className="app-section animate-fade-up delay-3">
+        <h2 className="section-kicker">Recent Transactions</h2>
         {transactions.isLoading ? (
           <Spinner />
         ) : transactions.isError ? (

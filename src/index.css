@@ -36,6 +36,7 @@ body {
     radial-gradient(circle, rgba(46, 46, 60, 0.9) 1px, transparent 1px);
   background-size: 100% 100%, 28px 28px;
   min-height: 100vh;
+  line-height: 1.4;
 }
 
 /* ── Scrollbar ───────────────────────────────────────── */
@@ -53,11 +54,21 @@ textarea {
   color: var(--parchment);
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
   font-size: 0.875rem;
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  padding: 0.625rem 0.75rem;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
   width: 100%;
+}
+
+input,
+select {
+  min-height: 2.5rem;
+}
+
+textarea {
+  min-height: 5.25rem;
+  line-height: 1.45;
 }
 
 input:focus,
@@ -75,6 +86,27 @@ textarea::placeholder {
 select option {
   background-color: var(--ink-raised);
   color: var(--parchment);
+}
+
+/* ── Layout rhythm utilities ────────────────────────── */
+.app-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.app-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-kicker {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 0.68rem;
+  color: var(--parchment-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
 }
 
 /* ── Animation delay utilities ───────────────────────── */

@@ -56,7 +56,7 @@ export function AddTransactionModal({ onClose }: Props) {
     <Modal title="Add Transaction" onClose={onClose}>
       <form
         onSubmit={(e) => { e.preventDefault(); setError(null); mutation.mutate() }}
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-5"
       >
         <label className="flex flex-col gap-1.5">
           <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Amount (USD) *</span>
@@ -141,18 +141,18 @@ export function AddTransactionModal({ onClose }: Props) {
 
         {error ? <p className="font-mono text-xs text-coral border border-coral/20 bg-coral/5 rounded-lg px-3 py-2">{error}</p> : null}
 
-        <div className="flex gap-2 justify-end pt-2">
+        <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 font-mono text-xs rounded-lg border border-ink-border text-parchment-muted hover:text-parchment transition-colors"
+            className="px-4 py-2.5 font-mono text-xs rounded-lg border border-ink-border text-parchment-muted hover:text-parchment transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="px-4 py-2 font-mono text-xs rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
+            className="px-4 py-2.5 font-mono text-xs rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
           >
             {mutation.isPending ? 'Adding…' : 'Add Transaction'}
           </button>

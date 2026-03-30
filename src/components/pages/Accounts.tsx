@@ -53,12 +53,12 @@ export default function Accounts() {
   const totalBalance = (data ?? []).reduce((s, a) => s + (a.current_balance ?? 0), 0)
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex items-end justify-between animate-fade-up">
+    <div className="app-page">
+      <div className="flex items-end justify-between gap-4 animate-fade-up">
         <div>
-          <p className="font-mono text-xs text-parchment-dim uppercase tracking-widest mb-1">Your</p>
+          <p className="section-kicker mb-2">Your</p>
           <h1
-            className="font-display text-4xl text-parchment leading-none"
+            className="font-display text-4xl md:text-5xl text-parchment leading-none"
             style={{ fontVariationSettings: '"opsz" 72, "wght" 300', fontStyle: 'italic' }}
           >
             Accounts
@@ -66,7 +66,7 @@ export default function Accounts() {
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          className="font-mono text-xs px-4 py-2 rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors"
+          className="font-mono text-xs px-4 py-2.5 rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors whitespace-nowrap"
         >
           + add account
         </button>
@@ -83,7 +83,7 @@ export default function Accounts() {
       ) : (
         <>
           {/* Summary strip */}
-          <div className="animate-fade-up delay-1 font-mono text-xs text-parchment-dim border border-ink-border rounded-lg px-4 py-3 bg-ink-card/50 flex items-center justify-between">
+          <div className="animate-fade-up delay-1 font-mono text-xs text-parchment-dim border border-ink-border rounded-lg px-4 py-3.5 bg-ink-card/50 flex items-center justify-between gap-4">
             <span>{data!.length} account{data!.length !== 1 ? 's' : ''}</span>
             <span>
               Total{' '}
@@ -92,7 +92,7 @@ export default function Accounts() {
           </div>
 
           <Card className="animate-fade-up delay-2 p-0 overflow-hidden">
-            <div className="px-5">
+            <div className="px-5 md:px-6">
               {data!.map((a) => (
                 <AccountRow key={a.id} account={a} />
               ))}

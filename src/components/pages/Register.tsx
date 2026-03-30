@@ -79,12 +79,12 @@ export default function Register({ onSuccess, onNavigateLogin }: RegisterProps) 
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-sm animate-fade-up">
+    <div className="min-h-screen flex items-center justify-center p-4 md:p-6">
+      <div className="w-full max-w-[26rem] animate-fade-up">
         {/* Logo */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8 md:mb-10">
           <span
-            className="font-display text-5xl text-gold"
+            className="font-display text-5xl md:text-6xl text-gold"
             style={{ fontVariationSettings: '"opsz" 72, "wght" 500', fontStyle: 'italic' }}
           >
             Ledger
@@ -96,7 +96,7 @@ export default function Register({ onSuccess, onNavigateLogin }: RegisterProps) 
 
         {/* Card */}
         <div
-          className="rounded-2xl border border-ink-border p-8 flex flex-col gap-5"
+          className="rounded-2xl border border-ink-border p-6 md:p-8 flex flex-col gap-5 md:gap-6"
           style={{
             background: 'linear-gradient(160deg, #1e1e28 0%, #141418 100%)',
             boxShadow: '0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -112,7 +112,7 @@ export default function Register({ onSuccess, onNavigateLogin }: RegisterProps) 
             <p className="font-mono text-xs text-parchment-dim mt-1">create your account</p>
           </div>
 
-          <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <form onSubmit={onSubmit} className="flex flex-col gap-5">
             <label className="flex flex-col gap-1.5">
               <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Name</span>
               <input
@@ -160,7 +160,7 @@ export default function Register({ onSuccess, onNavigateLogin }: RegisterProps) 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-1 w-full rounded-lg bg-gold text-ink font-mono text-sm font-medium py-2.5 hover:bg-gold-dim transition-colors disabled:opacity-50"
+              className="mt-1 w-full rounded-lg bg-gold text-ink font-mono text-sm font-medium py-3 hover:bg-gold-dim transition-colors disabled:opacity-50"
             >
               {isSubmitting ? 'creating…' : 'create account →'}
             </button>
