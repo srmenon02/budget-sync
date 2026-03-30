@@ -7,7 +7,7 @@ export const fetchTransactions = async (limit = 100): Promise<Transaction[]> => 
 }
 
 export const createTransaction = async (payload: {
-  account_id: string | null
+  account_id?: string | null
   amount: number
   description?: string
   merchant_name?: string

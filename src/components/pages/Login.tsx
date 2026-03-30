@@ -1,7 +1,42 @@
 import { useState } from 'react'
+import { isAxiosError } from 'axios'
 import { login } from '@/api/auth'
 import { Card } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
+
+function extractErrorMessage(err: unknown): string | null {
+  if (!isAxiosError(err)) {
+    return null
+  }
+
+  if (!err.response) {
+    return 'Could not reach the API. Check that the backend is running on http://localhost:8000.'
+  }
+
+  const data = err.response.data as { detail?: unknown } | undefined
+  const detail = data?.detail
+
+  if (typeof detail === 'string') {
+    return detail
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0] as { msg?: string }
+    if (typeof first?.msg === 'string') {
+      return first.msg
+    }
+    return 'Request validation failed. Please review your inputs.'
+  }
+
+  if (detail && typeof detail === 'object') {
+    const maybeMsg = (detail as { message?: string }).message
+    if (typeof maybeMsg === 'string') {
+      return maybeMsg
+    }
+  }
+
+  return null
+}
 
 interface LoginProps {
   onSuccess: () => void
@@ -23,8 +58,9 @@ export default function Login({ onSuccess, onNavigateRegister }: LoginProps) {
       const res = await login({ email, password })
       setAuth(res.access_token, res.user_id, res.email)
       onSuccess()
-    } catch {
-      setError('Invalid email or password.')
+    } catch (err) {
+      const message = extractErrorMessage(err)
+      setError(message ?? 'Invalid email or password.')
     } finally {
       setIsSubmitting(false)
     }

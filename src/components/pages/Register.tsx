@@ -1,7 +1,42 @@
 import { useState } from 'react'
+import { isAxiosError } from 'axios'
 import { register } from '@/api/auth'
 import { Card } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
+
+function extractErrorMessage(err: unknown): string | null {
+  if (!isAxiosError(err)) {
+    return null
+  }
+
+  if (!err.response) {
+    return 'Could not reach the API. Check that the backend is running on http://localhost:8000.'
+  }
+
+  const data = err.response.data as { detail?: unknown } | undefined
+  const detail = data?.detail
+
+  if (typeof detail === 'string') {
+    return detail
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0] as { msg?: string }
+    if (typeof first?.msg === 'string') {
+      return first.msg
+    }
+    return 'Request validation failed. Please review your inputs.'
+  }
+
+  if (detail && typeof detail === 'object') {
+    const maybeMsg = (detail as { message?: string }).message
+    if (typeof maybeMsg === 'string') {
+      return maybeMsg
+    }
+  }
+
+  return null
+}
 
 interface RegisterProps {
   onSuccess: () => void
@@ -14,11 +49,13 @@ export default function Register({ onSuccess, onNavigateLogin }: RegisterProps) 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
+    setNotice(null)
     setIsSubmitting(true)
     try {
       const res = await register({
@@ -26,10 +63,17 @@ export default function Register({ onSuccess, onNavigateLogin }: RegisterProps) 
         password,
         display_name: displayName || undefined,
       })
-      setAuth(res.access_token, res.user_id, res.email)
-      onSuccess()
-    } catch {
-      setError('Could not register with those details.')
+
+      if (res.status === 'authenticated' && res.access_token && res.user_id) {
+        setAuth(res.access_token, res.user_id, res.email)
+        onSuccess()
+        return
+      }
+
+      setNotice(res.message)
+    } catch (err) {
+      const message = extractErrorMessage(err)
+      setError(message ?? 'Could not register with those details.')
     } finally {
       setIsSubmitting(false)
     }
@@ -76,6 +120,7 @@ export default function Register({ onSuccess, onNavigateLogin }: RegisterProps) 
           </label>
 
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
+          {notice ? <p className="text-sm text-brand-700">{notice}</p> : null}
 
           <button
             type="submit"

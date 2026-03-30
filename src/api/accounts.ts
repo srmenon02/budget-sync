@@ -20,12 +20,13 @@ export const connectTellerAccount = async (payload: {
 }
 
 export const createManualAccount = async (payload: {
-  institution_name: string
-  account_name: string
-  account_type: string
-  last_four?: string
+  name: string
+  type?: string
+  provider?: string
+  balance_current?: number
+  currency?: string
 }): Promise<FinancialAccount> => {
-  const { data } = await client.post<FinancialAccount>('/accounts/manual', payload)
+  const { data } = await client.post<FinancialAccount>('/accounts/', payload)
   return data
 }
 

@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useTransactions } from '@/components/hooks/useTransactions'
 import { Card, Spinner, Badge, EmptyState } from '@/components/ui'
+import { AddTransactionModal } from '@/components/features/AddTransactionModal'
 import type { Transaction } from '@/components/index'
 
 function fmt(n: number) {
@@ -30,10 +32,20 @@ function TransactionRow({ tx }: { tx: Transaction }) {
 
 export default function Transactions() {
   const { data, isLoading, isError } = useTransactions(200)
+  const [showAdd, setShowAdd] = useState(false)
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="px-4 py-2 text-sm rounded-md bg-brand-600 text-white font-medium hover:bg-brand-700"
+        >
+          + Add Transaction
+        </button>
+      </div>
+      {showAdd && <AddTransactionModal onClose={() => setShowAdd(false)} />}
 
       {isLoading ? (
         <Spinner />

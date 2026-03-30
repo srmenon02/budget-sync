@@ -18,8 +18,17 @@ export interface AuthResponse {
   email: string
 }
 
-export const register = async (payload: RegisterPayload): Promise<AuthResponse> => {
-  const { data } = await client.post<AuthResponse>('/auth/register', payload)
+export interface RegisterResponse {
+  status: 'authenticated' | 'pending_verification'
+  message: string
+  email: string
+  user_id: string | null
+  access_token: string | null
+  token_type: string
+}
+
+export const register = async (payload: RegisterPayload): Promise<RegisterResponse> => {
+  const { data } = await client.post<RegisterResponse>('/auth/register', payload)
   return data
 }
 

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from supabase import AsyncClient, acreate_client as create_async_client
 
 from ..models.user import User
-from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest
+from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest, RegisterResponse
 
 
 def _get_supabase_url() -> str:
@@ -34,7 +34,7 @@ async def _client() -> AsyncClient:
 
 async def register(
     payload: RegisterRequest, db: AsyncSession
-) -> AuthResponse:
+) -> RegisterResponse:
     """Create a new Supabase auth user and mirror into local users table."""
     sb = await _client()
     try:
@@ -47,7 +47,7 @@ async def register(
             detail=str(exc),
         ) from exc
 
-    if response.user is None or response.session is None:
+    if response.user is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Registration failed — check your email or password requirements",
@@ -68,7 +68,18 @@ async def register(
     except Exception:
         await db.rollback()  # user may already exist; not fatal
 
-    return AuthResponse(
+    if response.session is None:
+        return RegisterResponse(
+            status="pending_verification",
+            message="Account created. Check your email to confirm your account before signing in.",
+            user_id=user_id,
+            email=email,
+            access_token=None,
+        )
+
+    return RegisterResponse(
+        status="authenticated",
+        message="Registration successful.",
         access_token=response.session.access_token,
         user_id=user_id,
         email=email,

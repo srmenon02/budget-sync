@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr
 
 
@@ -17,3 +19,12 @@ class AuthResponse(BaseModel):
     token_type: str = "bearer"
     user_id: str
     email: str
+
+
+class RegisterResponse(BaseModel):
+    status: Literal["authenticated", "pending_verification"]
+    message: str
+    email: str
+    user_id: str | None = None
+    access_token: str | None = None
+    token_type: str = "bearer"

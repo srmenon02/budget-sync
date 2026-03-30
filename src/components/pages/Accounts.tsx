@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useAccounts } from '@/components/hooks/useAccounts'
 import { Card, Spinner, Badge, EmptyState } from '@/components/ui'
+import { AddAccountModal } from '@/components/features/AddAccountModal'
 import type { FinancialAccount } from '@/components/index'
 
 function fmt(n: number) {
@@ -30,10 +32,20 @@ function AccountRow({ account }: { account: FinancialAccount }) {
 
 export default function Accounts() {
   const { data, isLoading, isError } = useAccounts()
+  const [showAdd, setShowAdd] = useState(false)
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="px-4 py-2 text-sm rounded-md bg-brand-600 text-white font-medium hover:bg-brand-700"
+        >
+          + Add Account
+        </button>
+      </div>
+      {showAdd && <AddAccountModal onClose={() => setShowAdd(false)} />}
 
       {isLoading ? (
         <Spinner />

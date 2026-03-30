@@ -1,10 +1,25 @@
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from .routers import auth_router, accounts_router, bank_sync_router, dev_router, transactions_router
 from .services.bank_sync import run_periodic_sync
 
 app = FastAPI(title="BudgetSync API - MVP")
+
+_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
+_origins = [o.strip() for o in _raw.split(",") if o.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 scheduler = AsyncIOScheduler()
 
 
