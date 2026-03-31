@@ -17,5 +17,13 @@ class TransactionCreate(BaseModel):
 
 class TransactionRead(TransactionCreate):
     id: str
+    transaction_date: date = Field(alias="date")
 
     model_config = {"from_attributes": True}
+
+
+class TransactionListResponse(BaseModel):
+    transactions: list[TransactionRead]
+    total_count: int
+    page: int
+    limit: int

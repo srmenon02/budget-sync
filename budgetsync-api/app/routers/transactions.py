@@ -1,9 +1,11 @@
+from datetime import date
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import CurrentUser, get_current_user, get_db
-from ..schemas.transaction import TransactionCreate, TransactionRead
+from ..schemas.transaction import TransactionCreate, TransactionListResponse, TransactionRead
 from ..services.transactions import create_transaction, list_transactions
 
 router = APIRouter()
@@ -29,10 +31,40 @@ async def api_create_transaction(
         ) from exc
 
 
-@router.get("/", response_model=List[TransactionRead])
+@router.get("/", response_model=TransactionListResponse)
 async def api_list_transactions(
     limit: int = Query(default=100, ge=1, le=500),
+    page: int = Query(default=1, ge=1),
+    month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    category: str | None = Query(default=None),
+    account_id: str | None = Query(default=None),
+    tx_type: Literal["income", "expense", "transfer"] | None = Query(default=None, alias="type"),
+    search: str | None = Query(default=None),
+    sort: Literal["date", "amount", "category"] = Query(default="date"),
+    sort_dir: Literal["asc", "desc"] = Query(default="desc"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    return await list_transactions(db, user_id=current_user["user_id"], limit=limit)
+    transactions, total_count = await list_transactions(
+        db,
+        user_id=current_user["user_id"],
+        limit=limit,
+        page=page,
+        month=month,
+        start_date=start_date,
+        end_date=end_date,
+        category=category,
+        account_id=account_id,
+        tx_type=tx_type,
+        search=search,
+        sort=sort,
+        sort_dir=sort_dir,
+    )
+    return {
+        "transactions": [TransactionRead.model_validate(tx) for tx in transactions],
+        "total_count": total_count,
+        "page": page,
+        "limit": limit,
+    }

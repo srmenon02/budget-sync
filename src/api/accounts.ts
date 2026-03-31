@@ -10,6 +10,17 @@ type AccountApiModel = {
   type?: string | null
   balance_current?: number | null
   currency?: string | null
+  last_synced_at?: string | null
+}
+
+type AccountsSummaryApiModel = {
+  accounts: AccountApiModel[]
+  total_balance: number
+}
+
+export type AccountsSummary = {
+  accounts: FinancialAccount[]
+  totalBalance: number
 }
 
 function mapAccount(account: AccountApiModel): FinancialAccount {
@@ -24,7 +35,7 @@ function mapAccount(account: AccountApiModel): FinancialAccount {
     is_manual: (account.provider ?? 'manual') === 'manual',
     is_shared_with_partner: false,
     sync_status: (account.provider ?? 'manual') === 'teller' ? 'ok' : 'manual',
-    last_synced_at: null,
+    last_synced_at: account.last_synced_at ?? null,
     created_at: new Date().toISOString(),
   }
 }
@@ -32,6 +43,14 @@ function mapAccount(account: AccountApiModel): FinancialAccount {
 export const fetchAccounts = async (): Promise<FinancialAccount[]> => {
   const { data } = await client.get<AccountApiModel[]>('/accounts/')
   return data.map(mapAccount)
+}
+
+export const fetchAccountsSummary = async (): Promise<AccountsSummary> => {
+  const { data } = await client.get<AccountsSummaryApiModel>('/accounts/summary')
+  return {
+    accounts: data.accounts.map(mapAccount),
+    totalBalance: data.total_balance,
+  }
 }
 
 export const connectTellerAccount = async (payload: {

@@ -13,7 +13,14 @@ if env_path.exists():
 else:
     load_dotenv()
 
-from .routers import auth_router, accounts_router, bank_sync_router, dev_router, transactions_router
+from .routers import (
+    accounts_router,
+    auth_router,
+    bank_sync_router,
+    budgets_router,
+    dev_router,
+    transactions_router,
+)
 from .services.bank_sync import run_periodic_sync
 
 app = FastAPI(title="BudgetSync API - MVP")
@@ -21,9 +28,14 @@ app = FastAPI(title="BudgetSync API - MVP")
 _raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
 _origins = [o.strip() for o in _raw.split(",") if o.strip()]
 
+# In local development, frontend tooling may use either localhost or 127.0.0.1
+# and may auto-select a different port if the preferred one is in use.
+_local_origin_regex = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
+    allow_origin_regex=_local_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -60,5 +72,6 @@ async def health():
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(transactions_router, prefix="/transactions", tags=["transactions"])
 app.include_router(accounts_router, prefix="/accounts", tags=["accounts"])
+app.include_router(budgets_router, prefix="/budgets", tags=["budgets"])
 app.include_router(bank_sync_router, prefix="/bank-sync", tags=["bank-sync"])
 app.include_router(dev_router, prefix="/dev", tags=["dev"])

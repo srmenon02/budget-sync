@@ -48,7 +48,11 @@ async def get_current_user(
         # the token signature using Supabase's public key.
         payload = jwt.decode(
             credentials.credentials,
-            options={"verify_signature": False},
+            key="",
+            options={
+                "verify_signature": False,
+                "verify_aud": False,
+            },
         )
     except JWTError as exc:
         raise HTTPException(

@@ -37,6 +37,15 @@ async def list_accounts(db: AsyncSession, user_id: str, limit: int = 100) -> Lis
     return q.scalars().all()
 
 
+async def get_accounts_summary(db: AsyncSession, user_id: str) -> tuple[list[Account], float]:
+    accounts = await list_accounts(db, user_id=user_id, limit=200)
+    total_balance = 0.0
+    for account in accounts:
+        if account.balance_current is not None:
+            total_balance += float(account.balance_current)
+    return accounts, total_balance
+
+
 def _extract_balance(account: dict[str, Any]) -> float | None:
     balance_data = account.get("balance")
     if isinstance(balance_data, dict):

@@ -45,12 +45,12 @@ async def test_transactions_are_isolated_per_user(client, auth_headers):
 
     owner_list_response = await client.get("/transactions/", headers=owner_headers)
     assert owner_list_response.status_code == 200
-    owner_ids = {tx["id"] for tx in owner_list_response.json()}
+    owner_ids = {tx["id"] for tx in owner_list_response.json()["transactions"]}
     assert created_tx_id in owner_ids
 
     other_list_response = await client.get("/transactions/", headers=other_headers)
     assert other_list_response.status_code == 200
-    other_ids = {tx["id"] for tx in other_list_response.json()}
+    other_ids = {tx["id"] for tx in other_list_response.json()["transactions"]}
     assert created_tx_id not in other_ids
 
 

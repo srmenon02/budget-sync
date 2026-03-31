@@ -9,7 +9,7 @@ function extractErrorMessage(err: unknown): string | null {
   }
 
   if (!err.response) {
-    return 'Could not reach the API. Check that the backend is running on http://localhost:8000.'
+    return 'Could not reach the API. Check that the backend is running on http://localhost:8000 and CORS allows your frontend origin (localhost/127.0.0.1).'
   }
 
   const data = err.response.data as { detail?: unknown } | undefined

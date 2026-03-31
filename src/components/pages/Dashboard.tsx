@@ -1,4 +1,7 @@
-import { useAccounts } from '@/components/hooks/useAccounts'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+
+import { useAccountSummary } from '@/components/hooks/useAccountSummary'
+import { useBudgets } from '@/components/hooks/useBudgets'
 import { useTransactions } from '@/components/hooks/useTransactions'
 import { Card, Spinner, Badge, EmptyState } from '@/components/ui'
 import type { FinancialAccount, Transaction } from '@/components/index'
@@ -58,16 +61,25 @@ function TransactionRow({ tx }: { tx: Transaction }) {
 }
 
 export default function Dashboard() {
-  const accounts = useAccounts()
-  const transactions = useTransactions(10)
+  const month = new Date().toISOString().slice(0, 7)
+  const accountSummary = useAccountSummary()
+  const budgets = useBudgets(month)
+  const transactions = useTransactions({ limit: 25, page: 1, month, sort: 'date', sort_dir: 'desc' })
 
-  const totalBalance = (accounts.data ?? []).reduce((sum, a) => {
-    return sum + (a.current_balance ?? 0)
-  }, 0)
+  const totalBalance = accountSummary.data?.totalBalance ?? 0
 
-  const totalExpenses = (transactions.data ?? [])
+  const txRows = transactions.data?.transactions ?? []
+  const totalExpenses = txRows
     .filter(t => (t.amount ?? 0) < 0)
     .reduce((s, t) => s + Math.abs(t.amount ?? 0), 0)
+
+  const chartRows = (budgets.data ?? []).map((budget) => ({
+    category: budget.category,
+    budget: budget.limit,
+    actual: budget.spent,
+  }))
+
+  const accountRows = accountSummary.data?.accounts ?? []
 
   return (
     <div className="app-page">
@@ -99,7 +111,7 @@ export default function Dashboard() {
             {fmt(totalBalance)}
           </p>
           <p className="font-mono text-xs text-parchment-dim mt-2 relative">
-            {accounts.data?.length ?? 0} account{accounts.data?.length !== 1 ? 's' : ''}
+            {accountRows.length} account{accountRows.length !== 1 ? 's' : ''}
           </p>
         </Card>
         <Card>
@@ -117,33 +129,59 @@ export default function Dashboard() {
       {/* Accounts */}
       <section className="app-section animate-fade-up delay-2">
         <h2 className="section-kicker">Accounts</h2>
-        {accounts.isLoading ? (
+        {accountSummary.isLoading ? (
           <Spinner />
-        ) : accounts.isError ? (
+        ) : accountSummary.isError ? (
           <p className="text-sm font-mono text-coral">Failed to load accounts.</p>
-        ) : accounts.data?.length === 0 ? (
+        ) : accountRows.length === 0 ? (
           <EmptyState message="No accounts yet. Seed some data or connect a bank account." />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {accounts.data!.map((a, i) => (
+            {accountRows.map((a, i) => (
               <AccountCard key={a.id} account={a} index={i} />
             ))}
           </div>
         )}
       </section>
 
-      {/* Recent transactions */}
       <section className="app-section animate-fade-up delay-3">
+        <h2 className="section-kicker">Budget vs Actual ({month})</h2>
+        {budgets.isLoading ? (
+          <Spinner />
+        ) : budgets.isError ? (
+          <p className="text-sm font-mono text-coral">Failed to load budget data.</p>
+        ) : chartRows.length === 0 ? (
+          <EmptyState message="No budgets set yet for this month." />
+        ) : (
+          <Card>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartRows} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
+                  <CartesianGrid stroke="#2f2f2f" strokeDasharray="3 3" />
+                  <XAxis dataKey="category" stroke="#a5a19a" tick={{ fontSize: 12 }} />
+                  <YAxis stroke="#a5a19a" tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="budget" fill="#d4a84a" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="actual" fill="#d96f5f" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        )}
+      </section>
+
+      {/* Recent transactions */}
+      <section className="app-section animate-fade-up delay-4">
         <h2 className="section-kicker">Recent Transactions</h2>
         {transactions.isLoading ? (
           <Spinner />
         ) : transactions.isError ? (
           <p className="text-sm font-mono text-coral">Failed to load transactions.</p>
-        ) : transactions.data?.length === 0 ? (
+        ) : txRows.length === 0 ? (
           <EmptyState message="No transactions yet." />
         ) : (
           <Card>
-            {transactions.data!.map((tx) => (
+            {txRows.map((tx) => (
               <TransactionRow key={tx.id} tx={tx} />
             ))}
           </Card>

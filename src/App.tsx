@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore'
 const Dashboard = lazy(() => import('./components/pages/Dashboard'))
 const Accounts = lazy(() => import('./components/pages/Accounts'))
 const Transactions = lazy(() => import('./components/pages/Transactions'))
+const Budget = lazy(() => import('./components/pages/Budget'))
 const Login = lazy(() => import('./components/pages/Login'))
 const Register = lazy(() => import('./components/pages/Register'))
 
@@ -11,6 +12,7 @@ const NAV = [
   { label: 'Overview', path: '/' },
   { label: 'Accounts', path: '/accounts' },
   { label: 'Transactions', path: '/transactions' },
+  { label: 'Budget', path: '/budget' },
 ]
 
 function getPage(path: string) {
@@ -18,11 +20,13 @@ function getPage(path: string) {
   if (path.startsWith('/register')) return <Register onSuccess={() => {}} onNavigateLogin={() => {}} />
   if (path.startsWith('/accounts')) return <Accounts />
   if (path.startsWith('/transactions')) return <Transactions />
+  if (path.startsWith('/budget')) return <Budget />
   return <Dashboard />
 }
 
 export default function App() {
   const [path, setPath] = React.useState(window.location.pathname)
+  const hasHydrated = useAuthStore((s) => s.hasHydrated)
   const token = useAuthStore((s) => s.token)
   const email = useAuthStore((s) => s.email)
   const logout = useAuthStore((s) => s.logout)
@@ -39,6 +43,9 @@ export default function App() {
   }
 
   React.useEffect(() => {
+    if (!hasHydrated) {
+      return
+    }
     if (!token && path !== '/login' && path !== '/register') {
       navigate('/login')
       return
@@ -46,9 +53,12 @@ export default function App() {
     if (token && (path === '/login' || path === '/register')) {
       navigate('/')
     }
-  }, [token, path])
+  }, [hasHydrated, token, path])
 
   function renderPage() {
+    if (!hasHydrated) {
+      return <div className="text-parchment-dim font-mono text-sm py-20 text-center">loading…</div>
+    }
     if (path.startsWith('/login')) {
       return <Login onSuccess={() => navigate('/')} onNavigateRegister={() => navigate('/register')} />
     }

@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchTransactions } from '@/api/transactions'
-import type { Transaction } from '@/components/index'
+import { fetchTransactions, type TransactionListResult, type TransactionQueryParams } from '@/api/transactions'
 
-export function useTransactions(limit = 100) {
-  return useQuery<Transaction[]>({
-    queryKey: ['transactions', limit],
-    queryFn: () => fetchTransactions(limit),
+export function useTransactions(params: TransactionQueryParams = {}) {
+  return useQuery<TransactionListResult>({
+    queryKey: ['transactions', params],
+    queryFn: () => fetchTransactions(params),
     staleTime: 5 * 60 * 1000,
   })
 }

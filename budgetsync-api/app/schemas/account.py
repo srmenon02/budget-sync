@@ -26,3 +26,18 @@ class TellerConnectPayload(BaseModel):
     account_name: Optional[str] = None
     account_type: Optional[str] = None
     last_four: Optional[str] = None
+
+
+class AccountSummaryItem(BaseModel):
+    id: str
+    name: str
+    type: Optional[str] = None
+    provider: Optional[str] = None
+    balance_current: Optional[float] = None
+    currency: Optional[str] = None
+    last_synced_at: Optional[str] = None
+
+
+class AccountsSummaryResponse(BaseModel):
+    accounts: list[AccountSummaryItem]
+    total_balance: float

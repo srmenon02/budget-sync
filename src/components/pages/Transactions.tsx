@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAccounts } from '@/components/hooks/useAccounts'
 import { useTransactions } from '@/components/hooks/useTransactions'
 import { Card, Spinner, EmptyState } from '@/components/ui'
 import { AddTransactionModal } from '@/components/features/AddTransactionModal'
@@ -35,11 +36,30 @@ function TransactionRow({ tx }: { tx: Transaction }) {
 }
 
 export default function Transactions() {
-  const { data, isLoading, isError } = useTransactions(200)
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('')
+  const [sort, setSort] = useState<'date' | 'amount' | 'category'>('date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [txType, setTxType] = useState<'' | 'income' | 'expense'>('')
+  const [accountId, setAccountId] = useState('')
   const [showAdd, setShowAdd] = useState(false)
 
-  const totalIn = (data ?? []).filter(t => (t.amount ?? 0) > 0).reduce((s, t) => s + (t.amount ?? 0), 0)
-  const totalOut = (data ?? []).filter(t => (t.amount ?? 0) < 0).reduce((s, t) => s + Math.abs(t.amount ?? 0), 0)
+  const accounts = useAccounts()
+  const { data, isLoading, isError } = useTransactions({
+    limit: 200,
+    page: 1,
+    search: search || undefined,
+    category: category || undefined,
+    account_id: accountId || undefined,
+    type: txType || undefined,
+    sort,
+    sort_dir: sortDir,
+  })
+
+  const rows = data?.transactions ?? []
+
+  const totalIn = rows.filter(t => (t.amount ?? 0) > 0).reduce((s, t) => s + (t.amount ?? 0), 0)
+  const totalOut = rows.filter(t => (t.amount ?? 0) < 0).reduce((s, t) => s + Math.abs(t.amount ?? 0), 0)
 
   return (
     <div className="app-page">
@@ -63,18 +83,56 @@ export default function Transactions() {
 
       {showAdd && <AddTransactionModal onClose={() => setShowAdd(false)} />}
 
+      <Card className="animate-fade-up delay-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search merchant or description"
+            className="xl:col-span-2"
+          />
+          <input
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="Category"
+          />
+          <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            <option value="">All accounts</option>
+            {(accounts.data ?? []).map((account) => (
+              <option value={account.id} key={account.id}>{account.account_name}</option>
+            ))}
+          </select>
+          <select value={txType} onChange={(e) => setTxType(e.target.value as '' | 'income' | 'expense')}>
+            <option value="">All types</option>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+          </select>
+          <div className="flex gap-2">
+            <select value={sort} onChange={(e) => setSort(e.target.value as 'date' | 'amount' | 'category')}>
+              <option value="date">Sort: Date</option>
+              <option value="amount">Sort: Amount</option>
+              <option value="category">Sort: Category</option>
+            </select>
+            <select value={sortDir} onChange={(e) => setSortDir(e.target.value as 'asc' | 'desc')}>
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </select>
+          </div>
+        </div>
+      </Card>
+
       {isLoading ? (
         <Spinner />
       ) : isError ? (
         <p className="text-sm font-mono text-coral">Failed to load transactions.</p>
-      ) : data?.length === 0 ? (
+      ) : rows.length === 0 ? (
         <EmptyState message="No transactions yet." />
       ) : (
         <>
-          <div className="animate-fade-up delay-1 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="animate-fade-up delay-2 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <div className="font-mono rounded-lg border border-ink-border bg-ink-card/50 px-4 py-3.5 text-center">
               <p className="text-xs text-parchment-dim mb-1">Entries</p>
-              <p className="text-parchment text-lg">{data!.length}</p>
+              <p className="text-parchment text-lg">{data?.totalCount ?? rows.length}</p>
             </div>
             <div className="font-mono rounded-lg border border-jade/20 bg-jade/5 px-4 py-3.5 text-center">
               <p className="text-xs text-parchment-dim mb-1">In</p>
@@ -86,9 +144,9 @@ export default function Transactions() {
             </div>
           </div>
 
-          <Card className="animate-fade-up delay-2 p-0 overflow-hidden">
+          <Card className="animate-fade-up delay-3 p-0 overflow-hidden">
             <div className="px-5 md:px-6">
-              {data!.map((tx) => (
+              {rows.map((tx) => (
                 <TransactionRow key={tx.id} tx={tx} />
               ))}
             </div>
