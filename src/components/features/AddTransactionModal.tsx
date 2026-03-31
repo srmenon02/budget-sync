@@ -38,7 +38,7 @@ export function AddTransactionModal({ onClose }: Props) {
         merchant_name: merchant || undefined,
         description: description || undefined,
         category: category || undefined,
-        account_id: accountId || undefined,
+        account_id: accountId,
         notes: notes || undefined,
         is_manual: true,
       }),
@@ -115,12 +115,17 @@ export function AddTransactionModal({ onClose }: Props) {
           <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Account</span>
           {accountsLoading ? (
             <div className="mt-1"><Spinner /></div>
+          ) : !accounts || accounts.length === 0 ? (
+            <p className="font-mono text-xs text-coral border border-coral/20 bg-coral/5 rounded-lg px-3 py-2">
+              Create an account first before adding transactions.
+            </p>
           ) : (
             <select
+              required
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
             >
-              <option value="">— None —</option>
+              <option value="">Select account</option>
               {accounts?.map((a) => (
                 <option key={a.id} value={a.id}>{a.account_name}</option>
               ))}

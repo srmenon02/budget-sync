@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,19 +15,24 @@ async def api_create_transaction(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    _ = current_user
     try:
-        tx = await create_transaction(db, payload)
+        tx = await create_transaction(db, payload, user_id=current_user["user_id"])
         return tx
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create transaction",
+        ) from exc
 
 
 @router.get("/", response_model=List[TransactionRead])
 async def api_list_transactions(
-    limit: int = 100,
+    limit: int = Query(default=100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    _ = current_user
-    return await list_transactions(db, limit=limit)
+    return await list_transactions(db, user_id=current_user["user_id"], limit=limit)

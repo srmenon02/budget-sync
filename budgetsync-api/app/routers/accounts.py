@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,13 +18,16 @@ async def api_create_account(
     try:
         acc = await create_account(db, payload, user_id=current_user["user_id"])
         return acc
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create account",
+        ) from exc
 
 
 @router.get("/", response_model=List[AccountRead])
 async def api_list_accounts(
-    limit: int = 100,
+    limit: int = Query(default=100, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
