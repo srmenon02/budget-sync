@@ -1,22 +1,50 @@
 import client from './client'
 import type { FinancialAccount } from '@/components/index'
 
+type AccountApiModel = {
+  id: string
+  user_id: string
+  provider?: string | null
+  external_id?: string | null
+  name: string
+  type?: string | null
+  balance_current?: number | null
+  currency?: string | null
+}
+
+function mapAccount(account: AccountApiModel): FinancialAccount {
+  return {
+    id: account.id,
+    owner_id: account.user_id,
+    institution_name: account.provider ?? 'Manual',
+    account_name: account.name,
+    account_type: account.type ?? 'other',
+    last_four: null,
+    current_balance: account.balance_current ?? null,
+    is_manual: (account.provider ?? 'manual') === 'manual',
+    is_shared_with_partner: false,
+    sync_status: (account.provider ?? 'manual') === 'teller' ? 'ok' : 'manual',
+    last_synced_at: null,
+    created_at: new Date().toISOString(),
+  }
+}
+
 export const fetchAccounts = async (): Promise<FinancialAccount[]> => {
-  const { data } = await client.get<FinancialAccount[]>('/accounts/')
-  return data
+  const { data } = await client.get<AccountApiModel[]>('/accounts/')
+  return data.map(mapAccount)
 }
 
 export const connectTellerAccount = async (payload: {
   enrollment_id: string
   access_token: string
-  institution_name: string
-  account_id: string
-  account_name: string
-  account_type: string
+  institution_name?: string
+  account_id?: string
+  account_name?: string
+  account_type?: string
   last_four?: string
 }): Promise<FinancialAccount> => {
-  const { data } = await client.post<FinancialAccount>('/accounts/connect-teller', payload)
-  return data
+  const { data } = await client.post<AccountApiModel>('/accounts/connect-teller', payload)
+  return mapAccount(data)
 }
 
 export const createManualAccount = async (payload: {
@@ -26,8 +54,8 @@ export const createManualAccount = async (payload: {
   balance_current?: number
   currency?: string
 }): Promise<FinancialAccount> => {
-  const { data } = await client.post<FinancialAccount>('/accounts/', payload)
-  return data
+  const { data } = await client.post<AccountApiModel>('/accounts/', payload)
+  return mapAccount(data)
 }
 
 export const updateAccount = async (

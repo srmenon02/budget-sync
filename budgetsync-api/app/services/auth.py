@@ -1,3 +1,4 @@
+import logging
 import os
 
 from fastapi import HTTPException, status
@@ -6,6 +7,8 @@ from supabase import AsyncClient, acreate_client as create_async_client
 
 from ..models.user import User
 from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest, RegisterResponse
+
+logger = logging.getLogger(__name__)
 
 
 def _get_supabase_url() -> str:
@@ -88,18 +91,25 @@ async def register(
 
 async def login(payload: LoginRequest) -> AuthResponse:
     """Sign in with email + password via Supabase and return the JWT."""
+    logger.info(f"Login attempt for email: {payload.email}")
     sb = await _client()
     try:
+        logger.info(f"Calling Supabase auth.sign_in_with_password for {payload.email}")
         response = await sb.auth.sign_in_with_password(
             {"email": payload.email, "password": payload.password}
         )
+        logger.info(f"Supabase returned: session={bool(response.session)}, user={bool(response.user)}")
+        if response.session:
+            logger.info(f"Session expires at: {response.session.expires_at}")
     except Exception as exc:
+        logger.error(f"Supabase login failed: {type(exc).__name__}: {str(exc)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+            detail=f"Authentication failed: {str(exc)}",
         ) from exc
 
     if response.session is None or response.user is None:
+        logger.error(f"Supabase login returned incomplete response: session={response.session}, user={response.user}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",

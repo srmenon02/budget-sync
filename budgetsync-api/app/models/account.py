@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Numeric
+from sqlalchemy import Column, Numeric, String, Text
 import uuid
 
 from ..database import Base
@@ -15,3 +15,5 @@ class Account(Base):
     type = Column(String(50), nullable=True)
     balance_current = Column(Numeric(12, 2), nullable=True)
     currency = Column(String(10), nullable=True, default='USD')
+    teller_access_token_enc = Column(Text, nullable=True)
+    last_synced_at = Column(String(50), nullable=True)

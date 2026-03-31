@@ -54,12 +54,21 @@ export default function Login({ onSuccess, onNavigateRegister }: LoginProps) {
     setError(null)
     setIsSubmitting(true)
     try {
+      console.log('[Login] Submitting with email:', email)
       const res = await login({ email, password })
+      console.log('[Login] Login succeeded, got response:', res)
       setAuth(res.access_token, res.user_id, res.email)
+      console.log('[Login] Auth state updated, token in store:', useAuthStore.getState().token?.substring(0, 20) + '...')
+      // Small delay to ensure localStorage is written and interceptor picks up new token
+      await new Promise(resolve => setTimeout(resolve, 100))
+      console.log('[Login] Calling onSuccess to navigate')
       onSuccess()
     } catch (err) {
+      console.error('[Login] Login error:', err)
       const message = extractErrorMessage(err)
-      setError(message ?? 'Invalid email or password.')
+      const finalMessage = message ?? 'Invalid email or password.'
+      console.error('[Login] Setting error:', finalMessage)
+      setError(finalMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -104,6 +113,8 @@ export default function Login({ onSuccess, onNavigateRegister }: LoginProps) {
               <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Email</span>
               <input
                 type="email"
+                name="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -115,6 +126,8 @@ export default function Login({ onSuccess, onNavigateRegister }: LoginProps) {
               <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Password</span>
               <input
                 type="password"
+                name="password"
+                autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

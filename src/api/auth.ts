@@ -33,6 +33,18 @@ export const register = async (payload: RegisterPayload): Promise<RegisterRespon
 }
 
 export const login = async (payload: LoginPayload): Promise<AuthResponse> => {
-  const { data } = await client.post<AuthResponse>('/auth/login', payload)
-  return data
+  try {
+    console.log('[API] Posting to /auth/login with email:', payload.email)
+    const { data } = await client.post<AuthResponse>('/auth/login', payload)
+    console.log('[API] /auth/login response:', data)
+    // Ensure required fields are present
+    if (!data.access_token || !data.user_id || !data.email) {
+      throw new Error('Server returned incomplete authentication response')
+    }
+    return data
+  } catch (error) {
+    console.error('[API] Login request failed:', error)
+    // Re-throw to let component error handler catch it
+    throw error
+  }
 }
