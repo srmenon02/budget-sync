@@ -22,9 +22,13 @@ type BudgetWriteResponse = {
 	year: string
 }
 
-export const fetchCurrentBudgets = async (month: string): Promise<BudgetActual[]> => {
+export const fetchCurrentBudgets = async (
+	month: string,
+	start_date?: string,
+	end_date?: string,
+): Promise<BudgetActual[]> => {
 	const { data } = await client.get<BudgetCurrentResponse>('/budgets/current', {
-		params: { month },
+		params: { month, start_date, end_date },
 	})
 	return data.budgets
 }

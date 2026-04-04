@@ -28,12 +28,13 @@ export function AddTransactionModal({ onClose }: Props) {
   const [category, setCategory] = useState('')
   const [accountId, setAccountId] = useState<string>('')
   const [notes, setNotes] = useState('')
+  const [txType, setTxType] = useState<'expense' | 'income'>('expense')
   const [error, setError] = useState<string | null>(null)
 
   const mutation = useMutation({
     mutationFn: () =>
       createTransaction({
-        amount: Number(amount),
+        amount: txType === 'expense' ? -Math.abs(Number(amount)) : Math.abs(Number(amount)),
         date,
         merchant_name: merchant || undefined,
         description: description || undefined,
@@ -58,15 +59,44 @@ export function AddTransactionModal({ onClose }: Props) {
         onSubmit={(e) => { e.preventDefault(); setError(null); mutation.mutate() }}
         className="flex flex-col gap-5"
       >
+        <div className="flex flex-col gap-1.5">
+          <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Type *</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setTxType('expense')}
+              className={`flex-1 font-mono text-xs px-3 py-2 rounded-lg border transition-colors ${
+                txType === 'expense'
+                  ? 'border-coral/60 text-coral bg-coral/10'
+                  : 'border-ink-border text-parchment-dim hover:text-parchment'
+              }`}
+            >
+              Expense (−)
+            </button>
+            <button
+              type="button"
+              onClick={() => setTxType('income')}
+              className={`flex-1 font-mono text-xs px-3 py-2 rounded-lg border transition-colors ${
+                txType === 'income'
+                  ? 'border-jade/60 text-jade bg-jade/10'
+                  : 'border-ink-border text-parchment-dim hover:text-parchment'
+              }`}
+            >
+              Income (+)
+            </button>
+          </div>
+        </div>
+
         <label className="flex flex-col gap-1.5">
           <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Amount (USD) *</span>
           <input
             required
             type="number"
             step="0.01"
+            min="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder="-12.50 (negative = expense)"
+            placeholder="e.g. 12.50"
           />
         </label>
 

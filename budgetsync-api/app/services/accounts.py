@@ -37,6 +37,16 @@ async def list_accounts(db: AsyncSession, user_id: str, limit: int = 100) -> Lis
     return q.scalars().all()
 
 
+async def delete_account(db: AsyncSession, account_id: str, user_id: str) -> None:
+    account = await db.scalar(
+        select(Account).where(Account.id == account_id, Account.user_id == user_id)
+    )
+    if account is None:
+        raise PermissionError("Account not found or access denied")
+    await db.delete(account)
+    await db.commit()
+
+
 async def get_accounts_summary(db: AsyncSession, user_id: str) -> tuple[list[Account], float]:
     accounts = await list_accounts(db, user_id=user_id, limit=200)
     total_balance = 0.0

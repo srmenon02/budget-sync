@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from supabase import AsyncClient, acreate_client as create_async_client
 
 from ..models.user import User
-from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest, RegisterResponse
+from ..schemas.auth import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, RegisterRequest, RegisterResponse
 
 logger = logging.getLogger(__name__)
 
@@ -78,12 +78,14 @@ async def register(
             user_id=user_id,
             email=email,
             access_token=None,
+            refresh_token=None,
         )
 
     return RegisterResponse(
         status="authenticated",
         message="Registration successful.",
         access_token=response.session.access_token,
+        refresh_token=response.session.refresh_token,
         user_id=user_id,
         email=email,
     )
@@ -117,6 +119,30 @@ async def login(payload: LoginRequest) -> AuthResponse:
 
     return AuthResponse(
         access_token=response.session.access_token,
+        refresh_token=response.session.refresh_token,
         user_id=str(response.user.id),
         email=response.user.email or payload.email,
+    )
+
+
+async def refresh_session(payload: RefreshRequest) -> RefreshResponse:
+    """Exchange a Supabase refresh token for a new access + refresh token pair."""
+    sb = await _client()
+    try:
+        response = await sb.auth.refresh_session(payload.refresh_token)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session refresh failed. Please log in again.",
+        ) from exc
+
+    if response.session is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session refresh failed. Please log in again.",
+        )
+
+    return RefreshResponse(
+        access_token=response.session.access_token,
+        refresh_token=response.session.refresh_token,
     )

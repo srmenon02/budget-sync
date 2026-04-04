@@ -57,10 +57,10 @@ export default function Login({ onSuccess, onNavigateRegister }: LoginProps) {
       console.log('[Login] Submitting with email:', email)
       const res = await login({ email, password })
       console.log('[Login] Login succeeded, got response:', res)
-      setAuth(res.access_token, res.user_id, res.email)
-      console.log('[Login] Auth state updated, token in store:', useAuthStore.getState().token?.substring(0, 20) + '...')
+      setAuth(res.access_token, res.refresh_token, res.user_id, res.email)
+      console.log('[Login] Auth state updated')
       // Small delay to ensure localStorage is written and interceptor picks up new token
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => setTimeout(resolve, 50))
       console.log('[Login] Calling onSuccess to navigate')
       onSuccess()
     } catch (err) {

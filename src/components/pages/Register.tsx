@@ -63,8 +63,8 @@ export default function Register({ onSuccess, onNavigateLogin }: RegisterProps) 
         display_name: displayName || undefined,
       })
 
-      if (res.status === 'authenticated' && res.access_token && res.user_id) {
-        setAuth(res.access_token, res.user_id, res.email)
+      if (res.status === 'authenticated' && res.access_token && res.user_id && res.refresh_token) {
+        setAuth(res.access_token, res.refresh_token, res.user_id, res.email)
         onSuccess()
         return
       }

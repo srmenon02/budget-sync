@@ -2,9 +2,11 @@ import os
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import CurrentUser, get_current_user, get_db
+from ..models.transaction import Transaction
 from ..schemas.account import AccountCreate
 from ..schemas.transaction import TransactionCreate
 from ..services.accounts import create_account, list_accounts
@@ -18,7 +20,7 @@ async def seed_dev_data(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ) -> dict[str, object]:
-    environment = os.getenv("ENV", "development").lower()
+    environment = os.getenv("ENVIRONMENT", "development").lower()
     if environment in {"production", "prod"}:
         raise HTTPException(status_code=403, detail="Seed endpoint disabled in production")
 
@@ -51,11 +53,21 @@ async def seed_dev_data(
             ("Payroll", 2450.00, "income"),
         ]
     ):
+        external_id = f"seed-{offset}"
+        existing_tx = await db.scalar(
+            select(Transaction.id).where(
+                Transaction.account_id == account.id,
+                Transaction.external_id == external_id,
+            )
+        )
+        if existing_tx is not None:
+            continue
+
         await create_transaction(
             db,
             TransactionCreate(
                 account_id=account.id,
-                external_id=f"seed-{offset}",
+                external_id=external_id,
                 amount=amount,
                 description=f"Seed transaction: {merchant}",
                 merchant_name=merchant,

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import get_db
-from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest, RegisterResponse
+from ..schemas.auth import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, RegisterRequest, RegisterResponse
 from ..services import auth as auth_service
 
 router = APIRouter()
@@ -18,3 +18,8 @@ async def register(
 @router.post("/login", response_model=AuthResponse)
 async def login(payload: LoginRequest) -> AuthResponse:
     return await auth_service.login(payload)
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh(payload: RefreshRequest) -> RefreshResponse:
+    return await auth_service.refresh_session(payload)

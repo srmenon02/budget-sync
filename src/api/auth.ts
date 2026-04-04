@@ -13,6 +13,7 @@ export interface LoginPayload {
 
 export interface AuthResponse {
   access_token: string
+  refresh_token: string
   token_type: string
   user_id: string
   email: string
@@ -24,6 +25,13 @@ export interface RegisterResponse {
   email: string
   user_id: string | null
   access_token: string | null
+  refresh_token: string | null
+  token_type: string
+}
+
+export interface RefreshResponse {
+  access_token: string
+  refresh_token: string
   token_type: string
 }
 
@@ -37,14 +45,17 @@ export const login = async (payload: LoginPayload): Promise<AuthResponse> => {
     console.log('[API] Posting to /auth/login with email:', payload.email)
     const { data } = await client.post<AuthResponse>('/auth/login', payload)
     console.log('[API] /auth/login response:', data)
-    // Ensure required fields are present
     if (!data.access_token || !data.user_id || !data.email) {
       throw new Error('Server returned incomplete authentication response')
     }
     return data
   } catch (error) {
     console.error('[API] Login request failed:', error)
-    // Re-throw to let component error handler catch it
     throw error
   }
+}
+
+export const refreshSession = async (refreshToken: string): Promise<RefreshResponse> => {
+  const { data } = await client.post<RefreshResponse>('/auth/refresh', { refresh_token: refreshToken })
+  return data
 }

@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,8 +52,14 @@ async def get_budgets_with_actuals(
     db: AsyncSession,
     user_id: str,
     month: str,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
 ) -> list[dict[str, object]]:
-    start_date, end_date = _month_range(month)
+    if start_date is not None and end_date is not None:
+        actuals_start = start_date
+        actuals_end = end_date
+    else:
+        actuals_start, actuals_end = _month_range(month)
 
     budgets_result = await db.execute(
         select(Budget).where(Budget.user_id == user_id, Budget.month == month).order_by(Budget.category.asc())
@@ -69,8 +76,8 @@ async def get_budgets_with_actuals(
         .where(
             Account.user_id == user_id,
             Transaction.amount < 0,
-            Transaction.date >= start_date,
-            Transaction.date < end_date,
+            Transaction.date >= actuals_start,
+            Transaction.date < actuals_end,
         )
         .group_by(func.coalesce(Transaction.user_category, Transaction.category))
     )

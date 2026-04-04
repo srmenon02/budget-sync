@@ -4,12 +4,12 @@ from datetime import date
 
 
 class TransactionCreate(BaseModel):
-    account_id: Optional[str]
-    external_id: Optional[str]
+    account_id: Optional[str] = None
+    external_id: Optional[str] = None
     amount: float
-    description: Optional[str]
-    merchant_name: Optional[str]
-    category: Optional[str]
+    description: Optional[str] = None
+    merchant_name: Optional[str] = None
+    category: Optional[str] = None
     date: date
     notes: Optional[str] = None
     is_manual: Optional[bool] = False

@@ -29,7 +29,7 @@ function TransactionRow({ tx }: { tx: Transaction }) {
         </div>
       </div>
       <span className={`font-mono text-sm font-medium ml-4 shrink-0 ${isExpense ? 'text-coral' : 'text-jade'}`}>
-        {fmt(amount)}
+        {isExpense ? '−' : '+'}{fmt(Math.abs(amount))}
       </span>
     </div>
   )
@@ -42,6 +42,8 @@ export default function Transactions() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [txType, setTxType] = useState<'' | 'income' | 'expense'>('')
   const [accountId, setAccountId] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [showAdd, setShowAdd] = useState(false)
 
   const accounts = useAccounts()
@@ -52,6 +54,8 @@ export default function Transactions() {
     category: category || undefined,
     account_id: accountId || undefined,
     type: txType || undefined,
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
     sort,
     sort_dir: sortDir,
   })
@@ -107,6 +111,20 @@ export default function Transactions() {
             <option value="income">Income</option>
             <option value="expense">Expense</option>
           </select>
+          <div className="xl:col-span-2 grid grid-cols-2 gap-2">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              title="From date"
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              title="To date"
+            />
+          </div>
           <div className="flex gap-2">
             <select value={sort} onChange={(e) => setSort(e.target.value as 'date' | 'amount' | 'category')}>
               <option value="date">Sort: Date</option>

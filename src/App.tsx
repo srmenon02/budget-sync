@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react'
 import { useAuthStore } from '@/stores/authStore'
+import { refreshSession } from '@/api/auth'
 
 const Dashboard = lazy(() => import('./components/pages/Dashboard'))
 const Accounts = lazy(() => import('./components/pages/Accounts'))
@@ -54,6 +55,21 @@ export default function App() {
       navigate('/')
     }
   }, [hasHydrated, token, path])
+
+  // Proactively refresh the access token on app load so the user stays logged in.
+  React.useEffect(() => {
+    if (!hasHydrated) return
+    const { refreshToken, setAuth, userId, email } = useAuthStore.getState()
+    if (!refreshToken) return
+    refreshSession(refreshToken)
+      .then((res) => {
+        setAuth(res.access_token, res.refresh_token, userId ?? '', email ?? '')
+      })
+      .catch(() => {
+        // Refresh token has expired — let the user log in again.
+        useAuthStore.getState().logout()
+      })
+  }, [hasHydrated])
 
   function renderPage() {
     if (!hasHydrated) {

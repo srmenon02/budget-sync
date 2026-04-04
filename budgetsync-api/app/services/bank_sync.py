@@ -1,6 +1,6 @@
 import os
 import base64
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 import httpx
@@ -18,7 +18,7 @@ class TellerSyncService:
 
     def __init__(self) -> None:
         self.app_id = os.getenv("TELLER_APP_ID", "") or os.getenv("TELLER_APPLICATION_ID", "")
-        self.environment = os.getenv("TELLER_ENVIRONMENT", "sandbox")
+        self.environment = _resolve_teller_environment()
 
     async def create_connect_token(self, user_id: str) -> dict[str, object]:
         return {
@@ -34,6 +34,26 @@ class TellerSyncService:
         result = await sync_teller_accounts_for_user(db, user_id)
         result["provider"] = "teller"
         return result
+
+
+def _resolve_teller_environment() -> str:
+    """Resolve Teller environment with safe defaults for local development.
+
+    Non-production defaults to sandbox to avoid accidental live logins and
+    billing requirements. To intentionally test live connections in non-prod,
+    set TELLER_ALLOW_PRODUCTION_IN_DEV=true.
+    """
+    configured_env = os.getenv("TELLER_ENVIRONMENT", "").strip().lower()
+    app_env = os.getenv("ENVIRONMENT", "development").strip().lower()
+
+    if app_env == "production":
+        return configured_env or "production"
+
+    allow_live_in_dev = os.getenv("TELLER_ALLOW_PRODUCTION_IN_DEV", "false").lower() == "true"
+    if configured_env in {"production", "live"} and not allow_live_in_dev:
+        return "sandbox"
+
+    return configured_env or "sandbox"
 
 
 def _build_fernet() -> Fernet | None:
@@ -137,7 +157,7 @@ def _coerce_date(value: Any) -> date:
             return date.fromisoformat(value[:10])
         except ValueError:
             pass
-    return datetime.now(UTC).date()
+    return datetime.now(timezone.utc).date()
 
 
 async def sync_teller_accounts_for_user(db: AsyncSession, user_id: str) -> dict[str, object]:
@@ -259,7 +279,7 @@ async def sync_teller_accounts_for_user(db: AsyncSession, user_id: str) -> dict[
                 db.add(tx)
                 transactions_imported += 1
 
-            local.last_synced_at = datetime.now(UTC).isoformat()
+            local.last_synced_at = datetime.now(timezone.utc).isoformat()
 
     await db.commit()
     return {
@@ -295,7 +315,7 @@ async def run_periodic_sync() -> dict[str, object]:
         return {
             "status": "ok",
             "provider": "teller",
-            "ran_at": datetime.now(UTC).isoformat(),
+            "ran_at": datetime.now(timezone.utc).isoformat(),
             "users_processed": len(user_ids),
             "accounts_processed": total_accounts,
             "transactions_imported": total_transactions,

@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAccounts } from '@/components/hooks/useAccounts'
 import { Card, Spinner, Badge, EmptyState } from '@/components/ui'
 import { AddAccountModal } from '@/components/features/AddAccountModal'
+import { deleteAccount } from '@/api/accounts'
 import type { FinancialAccount } from '@/components/index'
 
 function fmt(n: number) {
@@ -11,6 +13,16 @@ function fmt(n: number) {
 function AccountRow({ account }: { account: FinancialAccount }) {
   const balance = account.current_balance
   const isCredit = account.account_type === 'credit'
+  const [confirming, setConfirming] = useState(false)
+  const queryClient = useQueryClient()
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteAccount(account.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+    },
+  })
+
   return (
     <div className="flex items-center justify-between py-4 border-b border-ink-border/60 last:border-0 group">
       <div className="flex flex-col gap-1 min-w-0">
@@ -41,10 +53,35 @@ function AccountRow({ account }: { account: FinancialAccount }) {
         >
           {balance != null && !isNaN(balance) ? fmt(balance) : '—'}
         </span>
+        {confirming ? (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+              className="font-mono text-xs px-2.5 py-1.5 rounded border border-coral/50 text-coral hover:bg-coral/10 transition-colors disabled:opacity-50"
+            >
+              {deleteMutation.isPending ? '…' : 'Confirm'}
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              className="font-mono text-xs px-2.5 py-1.5 rounded border border-ink-border text-parchment-dim hover:text-parchment transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirming(true)}
+            className="opacity-0 group-hover:opacity-100 font-mono text-xs px-2.5 py-1.5 rounded border border-ink-border text-parchment-dim hover:text-coral hover:border-coral/50 transition-all"
+          >
+            Delete
+          </button>
+        )}
       </div>
     </div>
   )
 }
+
 
 export default function Accounts() {
   const { data, isLoading, isError } = useAccounts()

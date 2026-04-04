@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,8 +29,16 @@ async def api_upsert_budget(
 @router.get("/current", response_model=BudgetCurrentResponse)
 async def api_get_current_budgets(
     month: str = Query(pattern=r"^\d{4}-\d{2}$"),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    budgets = await get_budgets_with_actuals(db, user_id=current_user["user_id"], month=month)
+    budgets = await get_budgets_with_actuals(
+        db,
+        user_id=current_user["user_id"],
+        month=month,
+        start_date=start_date,
+        end_date=end_date,
+    )
     return {"month": month, "budgets": budgets}

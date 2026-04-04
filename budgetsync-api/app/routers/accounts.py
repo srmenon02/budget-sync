@@ -7,6 +7,7 @@ from ..schemas.account import AccountCreate, AccountRead, AccountsSummaryRespons
 from ..services.accounts import (
     connect_teller_account,
     create_account,
+    delete_account,
     get_accounts_summary,
     list_accounts,
 )
@@ -74,3 +75,17 @@ async def api_connect_teller_account(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to connect Teller account") from exc
+
+
+@router.delete("/{account_id}", status_code=204)
+async def api_delete_account(
+    account_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        await delete_account(db, account_id=account_id, user_id=current_user["user_id"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to delete account") from exc

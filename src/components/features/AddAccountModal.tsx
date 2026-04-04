@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { connectTellerAccount, createManualAccount } from '@/api/accounts'
-import { getTellerConnectConfig } from '@/api/bankSync'
+import { getTellerConnectConfig, seedDevData } from '@/api/bankSync'
 import { Modal } from '@/components/ui'
 
 const ACCOUNT_TYPES = ['checking', 'savings', 'credit', 'investment', 'loan', 'other']
@@ -62,6 +62,7 @@ function extractAccessToken(enrollment: TellerConnectEnrollment): string | null 
 }
 
 export function AddAccountModal({ onClose }: Props) {
+  const isDev = import.meta.env.DEV
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
   const [type, setType] = useState('checking')
@@ -135,6 +136,21 @@ export function AddAccountModal({ onClose }: Props) {
     },
   })
 
+  const seedMutation = useMutation({
+    mutationFn: seedDevData,
+    onSuccess: () => {
+      setConnectError(null)
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } }
+      setConnectError(e?.response?.data?.detail ?? 'Failed to seed demo data.')
+    },
+  })
+
   return (
     <Modal title="Add Account" onClose={onClose}>
       <form
@@ -187,6 +203,16 @@ export function AddAccountModal({ onClose }: Props) {
         {connectError ? <p className="font-mono text-xs text-coral border border-coral/20 bg-coral/5 rounded-lg px-3 py-2">{connectError}</p> : null}
 
         <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
+          {isDev ? (
+            <button
+              type="button"
+              onClick={() => { setConnectError(null); seedMutation.mutate() }}
+              disabled={seedMutation.isPending}
+              className="px-4 py-2.5 font-mono text-xs rounded-lg border border-jade/40 text-jade bg-jade/10 hover:bg-jade/20 transition-colors disabled:opacity-50"
+            >
+              {seedMutation.isPending ? 'Seeding…' : 'Seed Demo Data'}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => { setConnectError(null); connectMutation.mutate() }}
