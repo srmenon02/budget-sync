@@ -88,3 +88,95 @@ async def test_cannot_create_transaction_on_other_users_account(client, auth_hea
 
     assert forbidden_response.status_code == 403
     assert "access" in forbidden_response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_owner_can_update_and_delete_transaction(client, auth_headers):
+    headers = auth_headers("user-owner")
+
+    account_response = await client.post(
+        "/accounts/",
+        headers=headers,
+        json={
+            "name": "Checking",
+            "provider": "manual",
+            "currency": "USD",
+        },
+    )
+    assert account_response.status_code == 200
+    account_id = account_response.json()["id"]
+
+    create_response = await client.post(
+        "/transactions/",
+        headers=headers,
+        json={
+            "account_id": account_id,
+            "amount": -25.0,
+            "description": "Lunch",
+            "category": "Food",
+            "date": "2026-04-03",
+            "is_manual": True,
+        },
+    )
+    assert create_response.status_code == 200
+    tx_id = create_response.json()["id"]
+
+    update_response = await client.patch(
+        f"/transactions/{tx_id}",
+        headers=headers,
+        json={
+            "amount": -30.0,
+            "description": "Lunch + coffee",
+            "category": "Dining",
+        },
+    )
+    assert update_response.status_code == 200
+    assert float(update_response.json()["amount"]) == -30.0
+    assert update_response.json()["description"] == "Lunch + coffee"
+    assert update_response.json()["category"] == "Dining"
+
+    delete_response = await client.delete(f"/transactions/{tx_id}", headers=headers)
+    assert delete_response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_user_cannot_update_or_delete_other_users_transaction(client, auth_headers):
+    owner_headers = auth_headers("owner-user")
+    intruder_headers = auth_headers("intruder-user")
+
+    account_response = await client.post(
+        "/accounts/",
+        headers=owner_headers,
+        json={
+            "name": "Savings",
+            "provider": "manual",
+            "currency": "USD",
+        },
+    )
+    assert account_response.status_code == 200
+    account_id = account_response.json()["id"]
+
+    create_response = await client.post(
+        "/transactions/",
+        headers=owner_headers,
+        json={
+            "account_id": account_id,
+            "amount": -45.0,
+            "description": "Groceries",
+            "category": "Groceries",
+            "date": "2026-04-03",
+            "is_manual": True,
+        },
+    )
+    assert create_response.status_code == 200
+    tx_id = create_response.json()["id"]
+
+    patch_response = await client.patch(
+        f"/transactions/{tx_id}",
+        headers=intruder_headers,
+        json={"description": "Hacked"},
+    )
+    assert patch_response.status_code == 404
+
+    delete_response = await client.delete(f"/transactions/{tx_id}", headers=intruder_headers)
+    assert delete_response.status_code == 404

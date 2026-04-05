@@ -21,4 +21,5 @@ class Transaction(Base):
     date = Column(Date, nullable=False)
     notes = Column(Text, nullable=True)
     is_manual = Column(Boolean, default=False)
+    loan_id = Column(String(36), nullable=True)  # Link to loan for auto-balance updates
     created_at = Column(String(50), server_default=func.now())

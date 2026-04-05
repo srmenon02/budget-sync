@@ -4,6 +4,7 @@ import type { Transaction } from '@/components/index'
 type TransactionApiModel = {
   id: string
   account_id?: string
+  loan_id?: string | null
   amount: number
   merchant_name?: string | null
   description?: string | null
@@ -46,6 +47,7 @@ function mapTransaction(model: TransactionApiModel): Transaction {
   return {
     id: model.id,
     account_id: model.account_id ?? '',
+    loan_id: model.loan_id ?? null,
     amount: model.amount,
     merchant_name: model.merchant_name ?? null,
     description: model.description ?? null,
@@ -83,6 +85,7 @@ export const fetchTransactions = async (params: TransactionQueryParams = {}): Pr
 
 export const createTransaction = async (payload: {
   account_id?: string | null
+  loan_id?: string | null
   amount: number
   description?: string
   merchant_name?: string
@@ -92,5 +95,52 @@ export const createTransaction = async (payload: {
   is_manual?: boolean
 }): Promise<Transaction> => {
   const { data } = await client.post<Transaction>('/transactions/', payload)
+  return data
+}
+
+export const updateTransaction = async (
+  transactionId: string,
+  payload: {
+    amount?: number
+    description?: string
+    merchant_name?: string
+    category?: string
+    date?: string
+    notes?: string
+    loan_id?: string | null
+  },
+): Promise<Transaction> => {
+  const { data } = await client.patch<Transaction>(`/transactions/${transactionId}`, payload)
+  return data
+}
+
+export const deleteTransaction = async (transactionId: string): Promise<void> => {
+  await client.delete(`/transactions/${transactionId}`)
+}
+
+export const resetTransactions = async (params: {
+  month?: string
+  start_date?: string
+  end_date?: string
+  category?: string
+  account_id?: string
+  type?: 'income' | 'expense' | 'transfer'
+}): Promise<void> => {
+  await client.delete('/transactions/current', { params })
+}
+
+export const bulkImportTransactions = async (payload: {
+  account_id: string
+  items: Array<{
+    amount: number
+    description?: string
+    merchant_name?: string
+    category?: string
+    date?: string
+    notes?: string
+    tx_type?: 'income' | 'expense'
+  }>
+}): Promise<Transaction[]> => {
+  const { data } = await client.post<Transaction[]>('/transactions/bulk', payload)
   return data
 }

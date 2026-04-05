@@ -35,6 +35,14 @@ export interface RefreshResponse {
   token_type: string
 }
 
+export interface UserSettings {
+  user_id: string
+  email: string
+  display_name: string | null
+  primary_payday_day: number
+  secondary_payday_day: number
+}
+
 export const register = async (payload: RegisterPayload): Promise<RegisterResponse> => {
   const { data } = await client.post<RegisterResponse>('/auth/register', payload)
   return data
@@ -57,5 +65,19 @@ export const login = async (payload: LoginPayload): Promise<AuthResponse> => {
 
 export const refreshSession = async (refreshToken: string): Promise<RefreshResponse> => {
   const { data } = await client.post<RefreshResponse>('/auth/refresh', { refresh_token: refreshToken })
+  return data
+}
+
+export const fetchCurrentUserSettings = async (): Promise<UserSettings> => {
+  const { data } = await client.get<UserSettings>('/auth/me')
+  return data
+}
+
+export const updateCurrentUserSettings = async (payload: {
+  display_name?: string | null
+  primary_payday_day: number
+  secondary_payday_day: number
+}): Promise<UserSettings> => {
+  const { data } = await client.patch<UserSettings>('/auth/me', payload)
   return data
 }

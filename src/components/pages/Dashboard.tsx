@@ -63,18 +63,13 @@ function TransactionRow({ tx }: { tx: Transaction }) {
 export default function Dashboard() {
   const month = new Date().toISOString().slice(0, 7)
   const accountSummary = useAccountSummary()
-  const budgets = useBudgets(month)
+  const budgets = useBudgets(month, 'monthly')
   const transactions = useTransactions({ limit: 25, page: 1, month, sort: 'date', sort_dir: 'desc' })
 
-  const totalBalance = accountSummary.data?.totalBalance ?? 0
-
   const txRows = transactions.data?.transactions ?? []
-  const totalExpenses = txRows
-    .filter(t => (t.amount ?? 0) < 0)
-    .reduce((s, t) => s + Math.abs(t.amount ?? 0), 0)
 
-  const chartRows = (budgets.data ?? []).map((budget) => ({
-    category: budget.category,
+  const chartRows = (budgets.data?.budgets ?? []).map((budget) => ({
+    category: budget.category?.trim() ? budget.category : 'Uncategorized',
     budget: budget.limit,
     actual: budget.spent,
   }))
@@ -96,38 +91,8 @@ export default function Dashboard() {
         </h1>
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 animate-fade-up delay-1">
-        <Card className="border-gold/20 relative overflow-hidden">
-          <div
-            className="absolute inset-0 opacity-10"
-            style={{ background: 'radial-gradient(circle at 80% 50%, #e8b84b, transparent 70%)' }}
-          />
-          <p className="section-kicker mb-2 relative">Net Worth</p>
-          <p
-            className="font-display text-3xl md:text-[2.1rem] text-gold relative"
-            style={{ fontVariationSettings: '"opsz" 48, "wght" 500' }}
-          >
-            {fmt(totalBalance)}
-          </p>
-          <p className="font-mono text-xs text-parchment-dim mt-2 relative">
-            {accountRows.length} account{accountRows.length !== 1 ? 's' : ''}
-          </p>
-        </Card>
-        <Card>
-          <p className="section-kicker mb-2">Recent Spend</p>
-          <p
-            className="font-display text-3xl md:text-[2.1rem] text-coral"
-            style={{ fontVariationSettings: '"opsz" 48, "wght" 500' }}
-          >
-            {fmt(totalExpenses)}
-          </p>
-          <p className="font-mono text-xs text-parchment-dim mt-2">last 10 transactions</p>
-        </Card>
-      </div>
-
       {/* Accounts */}
-      <section className="app-section animate-fade-up delay-2">
+      <section className="app-section animate-fade-up delay-1">
         <h2 className="section-kicker">Accounts</h2>
         {accountSummary.isLoading ? (
           <Spinner />
@@ -144,7 +109,7 @@ export default function Dashboard() {
         )}
       </section>
 
-      <section className="app-section animate-fade-up delay-3">
+      <section className="app-section animate-fade-up delay-2">
         <h2 className="section-kicker">Budget vs Actual ({month})</h2>
         {budgets.isLoading ? (
           <Spinner />
@@ -158,7 +123,14 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartRows} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
                   <CartesianGrid stroke="#2f2f2f" strokeDasharray="3 3" />
-                  <XAxis dataKey="category" stroke="#a5a19a" tick={{ fontSize: 12 }} />
+                  <XAxis
+                    dataKey="category"
+                    stroke="#a5a19a"
+                    tick={{ fontSize: 12 }}
+                    interval={0}
+                    tickMargin={10}
+                    tickFormatter={(value: string) => (value && value.trim() ? value : 'Uncategorized')}
+                  />
                   <YAxis stroke="#a5a19a" tick={{ fontSize: 12 }} />
                   <Tooltip />
                   <Bar dataKey="budget" fill="#d4a84a" radius={[4, 4, 0, 0]} />
@@ -171,7 +143,7 @@ export default function Dashboard() {
       </section>
 
       {/* Recent transactions */}
-      <section className="app-section animate-fade-up delay-4">
+      <section className="app-section animate-fade-up delay-3">
         <h2 className="section-kicker">Recent Transactions</h2>
         {transactions.isLoading ? (
           <Spinner />

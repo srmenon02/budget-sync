@@ -20,6 +20,7 @@ from .routers import (
     budgets_router,
     dev_router,
     transactions_router,
+    loans_router,
 )
 from .services.bank_sync import run_periodic_sync
 
@@ -74,4 +75,5 @@ app.include_router(transactions_router, prefix="/transactions", tags=["transacti
 app.include_router(accounts_router, prefix="/accounts", tags=["accounts"])
 app.include_router(budgets_router, prefix="/budgets", tags=["budgets"])
 app.include_router(bank_sync_router, prefix="/bank-sync", tags=["bank-sync"])
+app.include_router(loans_router, prefix="/loans", tags=["loans"])
 app.include_router(dev_router, prefix="/dev", tags=["dev"])

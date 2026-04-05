@@ -24,6 +24,7 @@ export interface FinancialAccount {
 export interface Transaction {
   id: string
   account_id: string
+  loan_id?: string | null
   amount: number
   merchant_name: string | null
   description: string | null

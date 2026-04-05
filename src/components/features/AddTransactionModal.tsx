@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createTransaction } from '@/api/transactions'
 import { useAccounts } from '@/components/hooks/useAccounts'
+import { useLoans } from '@/components/hooks/useLoans'
 import { Modal, Spinner } from '@/components/ui'
 
 const CATEGORIES = [
@@ -20,6 +21,7 @@ function todayISO() {
 export function AddTransactionModal({ onClose }: Props) {
   const queryClient = useQueryClient()
   const { data: accounts, isLoading: accountsLoading } = useAccounts()
+  const { data: loans, isLoading: loansLoading } = useLoans()
 
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(todayISO())
@@ -29,6 +31,7 @@ export function AddTransactionModal({ onClose }: Props) {
   const [accountId, setAccountId] = useState<string>('')
   const [notes, setNotes] = useState('')
   const [txType, setTxType] = useState<'expense' | 'income'>('expense')
+  const [loanId, setLoanId] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const mutation = useMutation({
@@ -42,9 +45,11 @@ export function AddTransactionModal({ onClose }: Props) {
         account_id: accountId,
         notes: notes || undefined,
         is_manual: true,
+        loan_id: txType === 'expense' && loanId ? loanId : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['loans'] })
       onClose()
     },
     onError: (err: unknown) => {
@@ -140,6 +145,26 @@ export function AddTransactionModal({ onClose }: Props) {
             ))}
           </select>
         </label>
+
+        {txType === 'expense' ? (
+          <label className="flex flex-col gap-1.5">
+            <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Apply to loan</span>
+            {loansLoading ? (
+              <div className="mt-1"><Spinner /></div>
+            ) : (
+              <select
+                value={loanId}
+                onChange={(e) => setLoanId(e.target.value)}
+                disabled={!loans || loans.length === 0}
+              >
+                <option value="">No linked loan</option>
+                {(loans ?? []).map((loan) => (
+                  <option key={loan.id} value={loan.id}>{loan.name}</option>
+                ))}
+              </select>
+            )}
+          </label>
+        ) : null}
 
         <label className="flex flex-col gap-1.5">
           <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Account</span>

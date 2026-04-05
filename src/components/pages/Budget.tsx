@@ -1,305 +1,489 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import * as XLSX from 'xlsx'
 
-import { upsertBudget } from '@/api/budgets'
+import { bulkUpsertBudgets, resetCurrentBudgets, upsertBudget } from '@/api/budgets'
 import { useBudgets } from '@/components/hooks/useBudgets'
-import { Card, Spinner, EmptyState } from '@/components/ui'
+import { Card, EmptyState, Spinner } from '@/components/ui'
 
 const DEFAULT_CATEGORIES = [
-	'Groceries',
-	'Dining',
-	'Transportation',
-	'Utilities',
-	'Healthcare',
-	'Entertainment',
-	'Other',
+  'Groceries',
+  'Dining',
+  'Transportation',
+  'Utilities',
+  'Healthcare',
+  'Entertainment',
+  'Other',
 ]
 
-type Timeframe = 'this_week' | 'this_month' | 'this_quarter' | 'this_year'
+type BudgetPeriod = 'monthly' | 'paycheck'
 
-const TIMEFRAME_LABELS: Record<Timeframe, string> = {
-	this_week: 'This Week',
-	this_month: 'This Month',
-	this_quarter: 'This Quarter',
-	this_year: 'This Year',
+const PERIOD_LABELS: Record<BudgetPeriod, string> = {
+  monthly: 'Monthly',
+  paycheck: 'Per Paycheck',
 }
 
-function getDateRange(tf: Timeframe): { month: string; startDate?: string; endDate?: string } {
-	const now = new Date()
-	const month = now.toISOString().slice(0, 7)
+function getBudgetContext(period: BudgetPeriod): { month: string; helperText: string } {
+  const now = new Date()
+  const month = now.toISOString().slice(0, 7)
 
-	if (tf === 'this_month') return { month }
+  if (period === 'paycheck') {
+    return { month, helperText: 'Paycheck budgets only show categories for the active paycheck.' }
+  }
 
-	if (tf === 'this_week') {
-		const start = new Date(now)
-		start.setDate(now.getDate() - now.getDay())
-		const end = new Date(start)
-		end.setDate(start.getDate() + 7)
-		return { month, startDate: start.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10) }
-	}
-
-	if (tf === 'this_quarter') {
-		const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
-		const qEnd = new Date(qStart)
-		qEnd.setMonth(qEnd.getMonth() + 3)
-		return { month, startDate: qStart.toISOString().slice(0, 10), endDate: qEnd.toISOString().slice(0, 10) }
-	}
-
-	// this_year
-	return {
-		month,
-		startDate: `${now.getFullYear()}-01-01`,
-		endDate: `${now.getFullYear() + 1}-01-01`,
-	}
+  return { month, helperText: 'Monthly budgets compare against the full current month.' }
 }
 
 function fmt(amount: number) {
-	return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+}
+
+function parseCsvTextRows(rawText: string): string[][] {
+  return rawText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.split(',').map((cell) => cell.trim()))
+}
+
+function parseStrictBudgetRows(rows: string[][]): Array<{ category: string; amount: number }> {
+  if (rows.length < 2) {
+    throw new Error('File must include headers and at least one data row.')
+  }
+
+  const header = rows[0].map((cell) => cell.trim().toLowerCase())
+  const expected = ['category', 'amount']
+  if (header.length < expected.length || expected.some((value, index) => header[index] !== value)) {
+    throw new Error('Invalid header. Expected: category,amount')
+  }
+
+  const parsed: Array<{ category: string; amount: number }> = []
+  for (let i = 1; i < rows.length; i += 1) {
+    const lineNumber = i + 1
+    const row = rows[i]
+    if (!row || row.every((cell) => !String(cell ?? '').trim())) {
+      continue
+    }
+
+    const categoryName = String(row[0] ?? '').trim()
+    const amountRaw = String(row[1] ?? '').trim()
+
+    if (!categoryName) {
+      throw new Error(`Line ${lineNumber}: category is required.`)
+    }
+
+    const amountValue = Number(amountRaw)
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+      throw new Error(`Line ${lineNumber}: amount must be a number greater than 0.`)
+    }
+
+    parsed.push({ category: categoryName, amount: amountValue })
+  }
+
+  if (parsed.length === 0) {
+    throw new Error('No valid budget rows found.')
+  }
+
+  return parsed
 }
 
 export default function BudgetPage() {
-	const [timeframe, setTimeframe] = useState<Timeframe>('this_month')
-	const { month, startDate, endDate } = getDateRange(timeframe)
-	const queryClient = useQueryClient()
-	const budgetsQuery = useBudgets(month, startDate, endDate)
+  const [period, setPeriod] = useState<BudgetPeriod>('monthly')
+  const { month, helperText } = getBudgetContext(period)
+  const queryClient = useQueryClient()
+  const budgetsQuery = useBudgets(month, period)
 
-	const [category, setCategory] = useState(DEFAULT_CATEGORIES[0])
-	const [amount, setAmount] = useState('')
-	const [editingCategory, setEditingCategory] = useState<string | null>(null)
-	const [editingAmount, setEditingAmount] = useState('')
-	const [error, setError] = useState<string | null>(null)
-	const [editError, setEditError] = useState<string | null>(null)
+  const [category, setCategory] = useState(DEFAULT_CATEGORIES[0])
+  const [amount, setAmount] = useState('')
+  const [bulkInput, setBulkInput] = useState('')
+  const [bulkError, setBulkError] = useState<string | null>(null)
+  const [showCategorySuggestions, setShowCategorySuggestions] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<string | null>(null)
+  const [editingAmount, setEditingAmount] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
 
-	const mutation = useMutation({
-		mutationFn: () => upsertBudget({ category: category.trim(), amount: Number(amount), month }),
-		onSuccess: () => {
-			setAmount('')
-			setCategory(DEFAULT_CATEGORIES[0])
-			setError(null)
-			queryClient.invalidateQueries({ queryKey: ['budgets', month] })
-		},
-		onError: () => {
-			setError('Failed to save budget.')
-		},
-	})
+  const mutation = useMutation({
+    mutationFn: () => upsertBudget({ category: category.trim(), amount: Number(amount), month, period }),
+    onSuccess: () => {
+      setAmount('')
+      setCategory(DEFAULT_CATEGORIES[0])
+      setError(null)
+      queryClient.invalidateQueries({ queryKey: ['budgets', month, period] })
+    },
+    onError: () => {
+      setError('Failed to save budget.')
+    },
+  })
 
-	const editMutation = useMutation({
-		mutationFn: (payload: { category: string; amount: number; month: string }) => upsertBudget(payload),
-		onSuccess: () => {
-			setEditingCategory(null)
-			setEditingAmount('')
-			setEditError(null)
-			queryClient.invalidateQueries({ queryKey: ['budgets', month] })
-		},
-		onError: () => {
-			setEditError('Failed to update budget item.')
-		},
-	})
+  const bulkMutation = useMutation({
+    mutationFn: (items: Array<{ category: string; amount: number }>) =>
+      bulkUpsertBudgets({
+        month,
+        period,
+        items,
+      }),
+    onSuccess: () => {
+      setBulkInput('')
+      setBulkError(null)
+      queryClient.invalidateQueries({ queryKey: ['budgets', month, period] })
+    },
+    onError: () => {
+      setBulkError('Failed to import budget categories.')
+    },
+  })
 
-	const rows = budgetsQuery.data ?? []
-	const categoryOptions = useMemo(() => {
-		const existing = rows.map((row) => row.category)
-		return Array.from(new Set([...DEFAULT_CATEGORIES, ...existing])).sort((a, b) => a.localeCompare(b))
-	}, [rows])
+  const editMutation = useMutation({
+    mutationFn: (payload: { category: string; amount: number; month: string; period: BudgetPeriod }) => upsertBudget(payload),
+    onSuccess: () => {
+      setEditingCategory(null)
+      setEditingAmount('')
+      setEditError(null)
+      queryClient.invalidateQueries({ queryKey: ['budgets', month, period] })
+    },
+    onError: () => {
+      setEditError('Failed to update budget item.')
+    },
+  })
 
-	const totals = useMemo(() => {
-		const totalBudget = rows.reduce((sum, row) => sum + row.limit, 0)
-		const totalSpent = rows.reduce((sum, row) => sum + row.spent, 0)
-		return {
-			totalBudget,
-			totalSpent,
-			totalRemaining: totalBudget - totalSpent,
-		}
-	}, [rows])
+  async function handleBudgetFileUpload(file: File) {
+    setBulkError(null)
 
-	return (
-		<div className="app-page">
-			<div className="animate-fade-up flex items-end justify-between gap-4">
-				<div>
-					<p className="section-kicker mb-2">{TIMEFRAME_LABELS[timeframe]}</p>
-					<h1
-						className="font-display text-4xl md:text-5xl text-parchment leading-none"
-						style={{ fontVariationSettings: '"opsz" 72, "wght" 300', fontStyle: 'italic' }}
-					>
-						Budget
-					</h1>
-				</div>
-				<div className="flex items-center gap-1 pb-1">
-					{(Object.keys(TIMEFRAME_LABELS) as Timeframe[]).map((tf) => (
-						<button
-							key={tf}
-							onClick={() => setTimeframe(tf)}
-							className={`font-mono text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-								timeframe === tf
-									? 'border-gold/60 text-gold bg-gold-faint'
-									: 'border-ink-border text-parchment-dim hover:text-parchment hover:border-ink-border/80'
-							}`}
-						>
-							{TIMEFRAME_LABELS[tf]}
-						</button>
-					))}
-				</div>
-			</div>
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      let rows: string[][] = []
 
-			<Card className="animate-fade-up delay-1">
-				<form
-					onSubmit={(e) => {
-						e.preventDefault()
-						setError(null)
-						const trimmedCategory = category.trim()
-						if (!trimmedCategory) {
-							setError('Category is required.')
-							return
-						}
-						if (!amount || Number(amount) <= 0) {
-							setError('Budget amount must be greater than 0.')
-							return
-						}
-						mutation.mutate()
-					}}
-					className="grid grid-cols-1 md:grid-cols-4 gap-3"
-				>
-					<>
-						<input
-							list="budget-categories"
-							value={category}
-							onChange={(e) => setCategory(e.target.value)}
-							placeholder="Category (e.g. Groceries)"
-							required
-						/>
-						<datalist id="budget-categories">
-							{categoryOptions.map((item) => (
-								<option key={item} value={item} />
-							))}
-						</datalist>
-					</>
-					<input value={month} disabled className="opacity-70" />
-					<input
-						type="number"
-						step="0.01"
-						min="0"
-						placeholder="Monthly limit"
-						value={amount}
-						onChange={(e) => setAmount(e.target.value)}
-						required
-					/>
-					<button
-						type="submit"
-						className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
-						disabled={mutation.isPending}
-					>
-						{mutation.isPending ? 'Saving...' : 'Save Budget'}
-					</button>
-				</form>
-				{error ? <p className="font-mono text-xs text-coral mt-3">{error}</p> : null}
-				<p className="font-mono text-xs text-parchment-dim mt-3">
-					Use an existing category or type a new one to define your own budget categories.
-				</p>
-			</Card>
+      if (ext === 'csv') {
+        rows = parseCsvTextRows(await file.text())
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        const buffer = await file.arrayBuffer()
+        const wb = XLSX.read(buffer, { type: 'array' })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const data = XLSX.utils.sheet_to_json<(string | number | null)[]>(ws, { header: 1 })
+        rows = data.map((row) => row.map((cell) => String(cell ?? '').trim()))
+      } else {
+        throw new Error('Only .csv, .xlsx, or .xls files are supported.')
+      }
 
-			{budgetsQuery.isLoading ? (
-				<Spinner />
-			) : budgetsQuery.isError ? (
-				<p className="text-sm font-mono text-coral">Failed to load budgets.</p>
-			) : rows.length === 0 ? (
-				<EmptyState message="No budgets set for this month yet." />
-			) : (
-				<>
-					<div className="animate-fade-up delay-2 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-						<div className="font-mono rounded-lg border border-ink-border bg-ink-card/50 px-4 py-3.5 text-center">
-							<p className="text-xs text-parchment-dim mb-1">Budgeted</p>
-							<p className="text-parchment text-lg">{fmt(totals.totalBudget)}</p>
-						</div>
-						<div className="font-mono rounded-lg border border-coral/20 bg-coral/5 px-4 py-3.5 text-center">
-							<p className="text-xs text-parchment-dim mb-1">Spent</p>
-							<p className="text-coral text-lg">{fmt(totals.totalSpent)}</p>
-						</div>
-						<div className="font-mono rounded-lg border border-jade/20 bg-jade/5 px-4 py-3.5 text-center">
-							<p className="text-xs text-parchment-dim mb-1">Remaining</p>
-							<p className="text-jade text-lg">{fmt(totals.totalRemaining)}</p>
-						</div>
-					</div>
+      const parsed = parseStrictBudgetRows(rows)
+      bulkMutation.mutate(parsed)
+    } catch (uploadError) {
+      setBulkError(uploadError instanceof Error ? uploadError.message : 'Failed to parse budget file.')
+    }
+  }
 
-					<Card className="animate-fade-up delay-3 p-0 overflow-hidden">
-						<div className="px-5 md:px-6">
-							{rows.map((row) => (
-								<div key={row.category} className="py-4 border-b border-ink-border/60 last:border-0 flex items-center justify-between">
-									{editingCategory === row.category ? (
-										<div className="w-full flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 justify-between">
-											<div>
-												<p className="font-mono text-sm text-parchment">{row.category}</p>
-												<p className="font-mono text-xs text-parchment-dim mt-1">Adjust monthly limit</p>
-											</div>
-											<div className="flex items-center gap-2">
-												<input
-													type="number"
-													step="0.01"
-													min="0"
-													value={editingAmount}
-													onChange={(e) => setEditingAmount(e.target.value)}
-													className="w-32"
-												/>
-												<button
-													type="button"
-													onClick={() => {
-														setEditError(null)
-														if (!editingAmount || Number(editingAmount) <= 0) {
-															setEditError('Budget amount must be greater than 0.')
-															return
-														}
-														editMutation.mutate({ category: row.category, amount: Number(editingAmount), month })
-													}}
-													disabled={editMutation.isPending}
-													className="font-mono text-xs px-3 py-2 rounded-lg bg-gold text-ink hover:bg-gold-dim transition-colors disabled:opacity-50"
-												>
-													{editMutation.isPending ? 'Saving...' : 'Save'}
-												</button>
-												<button
-													type="button"
-													onClick={() => {
-														setEditingCategory(null)
-														setEditingAmount('')
-														setEditError(null)
-													}}
-													className="font-mono text-xs px-3 py-2 rounded-lg border border-ink-border text-parchment-muted hover:text-parchment transition-colors"
-												>
-													Cancel
-												</button>
-											</div>
-										</div>
-									) : (
-										<>
-											<div>
-												<p className="font-mono text-sm text-parchment">{row.category}</p>
-												<p className="font-mono text-xs text-parchment-dim mt-1">
-													Spent {fmt(row.spent)} of {fmt(row.limit)}
-												</p>
-											</div>
-											<div className="flex items-center gap-3 ml-4">
-												<p className={`font-mono text-sm ${row.over_budget ? 'text-coral' : 'text-jade'}`}>
-													{fmt(row.remaining)}
-												</p>
-												<button
-													type="button"
-													onClick={() => {
-														setEditingCategory(row.category)
-														setEditingAmount(String(row.limit))
-														setEditError(null)
-													}}
-													className="font-mono text-xs px-3 py-2 rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors"
-												>
-													Edit
-												</button>
-											</div>
-										</>
-									)}
-								</div>
-							))}
-						</div>
-						{editError ? <p className="font-mono text-xs text-coral px-5 md:px-6 py-3 border-t border-ink-border/60">{editError}</p> : null}
-					</Card>
-				</>
-			)}
-		</div>
-	)
+  const rows = budgetsQuery.data?.budgets ?? []
+  const categoryOptions = useMemo(() => {
+    const existing = rows.map((row) => row.category)
+    return Array.from(new Set([...DEFAULT_CATEGORIES, ...existing])).sort((a, b) => a.localeCompare(b))
+  }, [rows])
+
+  const filteredCategoryOptions = useMemo(() => {
+    const q = category.trim().toLowerCase()
+    if (!q) {
+      return categoryOptions.slice(0, 8)
+    }
+    return categoryOptions.filter((item) => item.toLowerCase().includes(q)).slice(0, 8)
+  }, [category, categoryOptions])
+
+  const resetMutation = useMutation({
+    mutationFn: () => resetCurrentBudgets(month, period),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      setEditingCategory(null)
+      setEditingAmount('')
+    },
+    onError: () => {
+      setError(`Failed to reset ${period} categories.`)
+    },
+  })
+
+  const totals = useMemo(() => {
+    const totalBudget = rows.reduce((sum, row) => sum + row.limit, 0)
+    const totalSpent = rows.reduce((sum, row) => sum + row.spent, 0)
+    return {
+      totalBudget,
+      totalSpent,
+      totalRemaining: totalBudget - totalSpent,
+    }
+  }, [rows])
+
+  return (
+    <div className="app-page">
+      <div className="animate-fade-up flex items-end justify-between gap-4">
+        <div>
+          <p className="section-kicker mb-2">{PERIOD_LABELS[period]}</p>
+          <h1
+            className="font-display text-4xl md:text-5xl text-parchment leading-none"
+            style={{ fontVariationSettings: '"opsz" 72, "wght" 300', fontStyle: 'italic' }}
+          >
+            Budget
+          </h1>
+        </div>
+        <div className="flex items-center gap-1 pb-1">
+          {(Object.keys(PERIOD_LABELS) as BudgetPeriod[]).map((budgetPeriod) => (
+            <button
+              key={budgetPeriod}
+              onClick={() => setPeriod(budgetPeriod)}
+              className={`font-mono text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                period === budgetPeriod
+                  ? 'border-gold/60 text-gold bg-gold-faint'
+                  : 'border-ink-border text-parchment-dim hover:text-parchment hover:border-ink-border/80'
+              }`}
+            >
+              {PERIOD_LABELS[budgetPeriod]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Card className="animate-fade-up delay-1">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            setError(null)
+            const trimmedCategory = category.trim()
+            if (!trimmedCategory) {
+              setError('Category is required.')
+              return
+            }
+            if (!amount || Number(amount) <= 0) {
+              setError('Budget amount must be greater than 0.')
+              return
+            }
+            mutation.mutate()
+          }}
+          className="grid grid-cols-1 md:grid-cols-4 gap-3"
+        >
+          <div className="relative">
+            <input
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value)
+                setShowCategorySuggestions(true)
+              }}
+              onFocus={() => setShowCategorySuggestions(true)}
+              onBlur={() => {
+                window.setTimeout(() => setShowCategorySuggestions(false), 120)
+              }}
+              placeholder="Category (e.g. Groceries)"
+              autoComplete="off"
+              required
+            />
+            {showCategorySuggestions && filteredCategoryOptions.length > 0 ? (
+              <div className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-20 rounded-md border border-ink-border bg-ink-raised shadow-lg overflow-hidden">
+                {filteredCategoryOptions.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onMouseDown={() => {
+                      setCategory(item)
+                      setShowCategorySuggestions(false)
+                    }}
+                    className="w-full text-left px-3 py-2 font-mono text-xs text-parchment hover:bg-ink-card transition-colors"
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <select value={period} onChange={(event) => setPeriod(event.target.value as BudgetPeriod)}>
+            <option value="monthly">Monthly budget</option>
+            <option value="paycheck">Paycheck budget</option>
+          </select>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder={period === 'monthly' ? 'Monthly limit' : 'Per-paycheck limit'}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+          <button
+            type="submit"
+            className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? 'Saving...' : 'Save Budget'}
+          </button>
+        </form>
+        {error ? <p className="font-mono text-xs text-coral mt-3">{error}</p> : null}
+        <p className="font-mono text-xs text-parchment-dim mt-3">
+          Use an existing category or type a new one to define your own budget categories. {helperText}
+        </p>
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              const confirmed = window.confirm('Are you sure you want to reset these categories?')
+              if (!confirmed) {
+                return
+              }
+              setError(null)
+              resetMutation.mutate()
+            }}
+            disabled={resetMutation.isPending}
+            className="font-mono text-xs px-3 py-1.5 rounded border border-coral/40 text-coral/90 hover:bg-coral/10 transition-colors disabled:opacity-50"
+          >
+            {resetMutation.isPending ? 'Resetting...' : 'Reset'}
+          </button>
+        </div>
+
+        <div className="mt-4 border-t border-ink-border/70 pt-4">
+          <p className="font-mono text-xs text-parchment-dim mb-2">Bulk import categories</p>
+          <p className="font-mono text-xs text-parchment-dim mb-2">Strict format: category,amount</p>
+          <textarea
+            value={bulkInput}
+            onChange={(event) => setBulkInput(event.target.value)}
+            placeholder={'category,amount\nGroceries,500\nTransportation,200'}
+            rows={4}
+          />
+          <div className="mt-2">
+            <label className="font-mono text-xs text-parchment-dim inline-flex items-center gap-2">
+              <span>Import CSV/XLSX file:</span>
+              <input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) {
+                    handleBudgetFileUpload(file)
+                  }
+                  event.currentTarget.value = ''
+                }}
+                className="text-xs"
+              />
+            </label>
+          </div>
+          <div className="mt-2 flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setBulkError(null)
+                try {
+                  const parsed = parseStrictBudgetRows(parseCsvTextRows(bulkInput))
+                  bulkMutation.mutate(parsed)
+                } catch (parseError) {
+                  setBulkError(parseError instanceof Error ? parseError.message : 'Failed to parse pasted budget rows.')
+                }
+              }}
+              disabled={bulkMutation.isPending}
+              className="font-mono text-xs px-3 py-1.5 rounded border border-gold/40 text-gold hover:bg-gold/10 transition-colors disabled:opacity-50"
+            >
+              {bulkMutation.isPending ? 'Importing...' : 'Import Categories'}
+            </button>
+          </div>
+          {bulkError ? <p className="font-mono text-xs text-coral mt-2">{bulkError}</p> : null}
+        </div>
+      </Card>
+
+      {budgetsQuery.isLoading ? (
+        <Spinner />
+      ) : budgetsQuery.isError ? (
+        <p className="text-sm font-mono text-coral">Failed to load budgets.</p>
+      ) : rows.length === 0 ? (
+        <EmptyState message={period === 'monthly' ? 'No monthly budgets set for this month yet.' : 'No paycheck budgets set for the active paycheck yet.'} />
+      ) : (
+        <>
+          <div className="animate-fade-up delay-2 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <div className="font-mono rounded-lg border border-ink-border bg-ink-card/50 px-4 py-3.5 text-center">
+              <p className="text-xs text-parchment-dim mb-1">Budgeted</p>
+              <p className="text-parchment text-lg">{fmt(totals.totalBudget)}</p>
+            </div>
+            <div className="font-mono rounded-lg border border-coral/20 bg-coral/5 px-4 py-3.5 text-center">
+              <p className="text-xs text-parchment-dim mb-1">Spent</p>
+              <p className="text-coral text-lg">{fmt(totals.totalSpent)}</p>
+            </div>
+            <div className="font-mono rounded-lg border border-jade/20 bg-jade/5 px-4 py-3.5 text-center">
+              <p className="text-xs text-parchment-dim mb-1">Remaining</p>
+              <p className="text-jade text-lg">{fmt(totals.totalRemaining)}</p>
+            </div>
+          </div>
+
+          <Card className="animate-fade-up delay-3 p-0 overflow-hidden">
+            <div className="px-5 md:px-6">
+              {rows.map((row) => (
+                <div key={row.category} className="py-4 border-b border-ink-border/60 last:border-0 flex items-center justify-between">
+                  {editingCategory === row.category ? (
+                    <div className="w-full flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 justify-between">
+                      <div>
+                        <p className="font-mono text-sm text-parchment">{row.category}</p>
+                        <p className="font-mono text-xs text-parchment-dim mt-1">
+                          Adjust {row.period === 'monthly' ? 'monthly' : 'paycheck'} limit
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={editingAmount}
+                          onChange={(e) => setEditingAmount(e.target.value)}
+                          className="w-32"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditError(null)
+                            if (!editingAmount || Number(editingAmount) <= 0) {
+                              setEditError('Budget amount must be greater than 0.')
+                              return
+                            }
+                            editMutation.mutate({ category: row.category, amount: Number(editingAmount), month, period })
+                          }}
+                          disabled={editMutation.isPending}
+                          className="font-mono text-xs px-3 py-2 rounded-lg bg-gold text-ink hover:bg-gold-dim transition-colors disabled:opacity-50"
+                        >
+                          {editMutation.isPending ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCategory(null)
+                            setEditingAmount('')
+                            setEditError(null)
+                          }}
+                          className="font-mono text-xs px-3 py-2 rounded-lg border border-ink-border text-parchment-muted hover:text-parchment transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="font-mono text-sm text-parchment">{row.category}</p>
+                        <p className="font-mono text-xs text-parchment-dim mt-1">
+                          Spent {fmt(row.spent)} of {fmt(row.limit)} · {row.period === 'monthly' ? 'Monthly' : 'Paycheck'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 ml-4">
+                        <p className={`font-mono text-sm ${row.over_budget ? 'text-coral' : 'text-jade'}`}>
+                          {fmt(row.remaining)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCategory(row.category)
+                            setEditingAmount(String(row.limit))
+                            setEditError(null)
+                          }}
+                          className="font-mono text-xs px-3 py-2 rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+            {editError ? <p className="font-mono text-xs text-coral px-5 md:px-6 py-3 border-t border-ink-border/60">{editError}</p> : null}
+          </Card>
+        </>
+      )}
+    </div>
+  )
 }

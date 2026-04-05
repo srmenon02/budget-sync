@@ -11,6 +11,7 @@ from .database import AsyncSessionLocal
 
 class CurrentUser(TypedDict):
     user_id: str
+    email: str | None
 
 
 security = HTTPBearer(auto_error=False)
@@ -36,7 +37,10 @@ async def get_current_user(
 
     if credentials is None:
         if dev_bypass:
-            return {"user_id": os.getenv("DEV_USER_ID", "dev-user")}
+            return {
+                "user_id": os.getenv("DEV_USER_ID", "dev-user"),
+                "email": os.getenv("DEV_USER_EMAIL", "dev-user@example.com"),
+            }
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing bearer token",
@@ -67,4 +71,4 @@ async def get_current_user(
             detail="Token missing subject",
         )
 
-    return {"user_id": str(user_id)}
+    return {"user_id": str(user_id), "email": payload.get("email")}
