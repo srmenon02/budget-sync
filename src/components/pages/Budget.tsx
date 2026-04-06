@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx'
 import { bulkUpsertBudgets, resetCurrentBudgets, upsertBudget } from '@/api/budgets'
 import { useBudgets } from '@/components/hooks/useBudgets'
 import { Card, EmptyState, Spinner } from '@/components/ui'
+import { useBudgetViewStore } from '@/stores/budgetViewStore'
 
 const DEFAULT_CATEGORIES = [
   'Groceries',
@@ -36,6 +37,16 @@ function getBudgetContext(period: BudgetPeriod): { month: string; helperText: st
 
 function fmt(amount: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+}
+
+function downloadTemplateFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 function parseCsvTextRows(rawText: string): string[][] {
@@ -88,7 +99,7 @@ function parseStrictBudgetRows(rows: string[][]): Array<{ category: string; amou
 }
 
 export default function BudgetPage() {
-  const [period, setPeriod] = useState<BudgetPeriod>('monthly')
+  const period = useBudgetViewStore((state) => state.mode as BudgetPeriod)
   const { month, helperText } = getBudgetContext(period)
   const queryClient = useQueryClient()
   const budgetsQuery = useBudgets(month, period)
@@ -102,6 +113,7 @@ export default function BudgetPage() {
   const [editingAmount, setEditingAmount] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
+  const budgetTemplate = useMemo(() => 'category,amount\nGroceries,500\nTransportation,200', [])
 
   const mutation = useMutation({
     mutationFn: () => upsertBudget({ category: category.trim(), amount: Number(amount), month, period }),
@@ -172,7 +184,7 @@ export default function BudgetPage() {
     }
   }
 
-  const rows = budgetsQuery.data?.budgets ?? []
+  const rows = useMemo(() => budgetsQuery.data?.budgets ?? [], [budgetsQuery.data?.budgets])
   const categoryOptions = useMemo(() => {
     const existing = rows.map((row) => row.category)
     return Array.from(new Set([...DEFAULT_CATEGORIES, ...existing])).sort((a, b) => a.localeCompare(b))
@@ -220,21 +232,7 @@ export default function BudgetPage() {
             Budget
           </h1>
         </div>
-        <div className="flex items-center gap-1 pb-1">
-          {(Object.keys(PERIOD_LABELS) as BudgetPeriod[]).map((budgetPeriod) => (
-            <button
-              key={budgetPeriod}
-              onClick={() => setPeriod(budgetPeriod)}
-              className={`font-mono text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                period === budgetPeriod
-                  ? 'border-gold/60 text-gold bg-gold-faint'
-                  : 'border-ink-border text-parchment-dim hover:text-parchment hover:border-ink-border/80'
-              }`}
-            >
-              {PERIOD_LABELS[budgetPeriod]}
-            </button>
-          ))}
-        </div>
+        <p className="font-mono text-xs text-parchment-dim pb-1">Mode set from Overview tab</p>
       </div>
 
       <Card className="animate-fade-up delay-1">
@@ -253,7 +251,7 @@ export default function BudgetPage() {
             }
             mutation.mutate()
           }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-3"
+          className="grid grid-cols-1 md:grid-cols-3 gap-3"
         >
           <div className="relative">
             <input
@@ -288,10 +286,6 @@ export default function BudgetPage() {
               </div>
             ) : null}
           </div>
-          <select value={period} onChange={(event) => setPeriod(event.target.value as BudgetPeriod)}>
-            <option value="monthly">Monthly budget</option>
-            <option value="paycheck">Paycheck budget</option>
-          </select>
           <input
             type="number"
             step="0.01"
@@ -333,14 +327,13 @@ export default function BudgetPage() {
 
         <div className="mt-4 border-t border-ink-border/70 pt-4">
           <p className="font-mono text-xs text-parchment-dim mb-2">Bulk import categories</p>
-          <p className="font-mono text-xs text-parchment-dim mb-2">Strict format: category,amount</p>
           <textarea
             value={bulkInput}
             onChange={(event) => setBulkInput(event.target.value)}
-            placeholder={'category,amount\nGroceries,500\nTransportation,200'}
+            placeholder=""
             rows={4}
           />
-          <div className="mt-2">
+          <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <label className="font-mono text-xs text-parchment-dim inline-flex items-center gap-2">
               <span>Import CSV/XLSX file:</span>
               <input
@@ -356,24 +349,31 @@ export default function BudgetPage() {
                 className="text-xs"
               />
             </label>
-          </div>
-          <div className="mt-2 flex justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                setBulkError(null)
-                try {
-                  const parsed = parseStrictBudgetRows(parseCsvTextRows(bulkInput))
-                  bulkMutation.mutate(parsed)
-                } catch (parseError) {
-                  setBulkError(parseError instanceof Error ? parseError.message : 'Failed to parse pasted budget rows.')
-                }
-              }}
-              disabled={bulkMutation.isPending}
-              className="font-mono text-xs px-3 py-1.5 rounded border border-gold/40 text-gold hover:bg-gold/10 transition-colors disabled:opacity-50"
-            >
-              {bulkMutation.isPending ? 'Importing...' : 'Import Categories'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => downloadTemplateFile('budget-template.csv', budgetTemplate)}
+                className="font-mono text-xs px-3 py-1.5 rounded border border-ink-border text-parchment-dim hover:text-parchment transition-colors"
+              >
+                Download Template
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkError(null)
+                  try {
+                    const parsed = parseStrictBudgetRows(parseCsvTextRows(bulkInput))
+                    bulkMutation.mutate(parsed)
+                  } catch (parseError) {
+                    setBulkError(parseError instanceof Error ? parseError.message : 'Failed to parse pasted budget rows.')
+                  }
+                }}
+                disabled={bulkMutation.isPending}
+                className="font-mono text-xs px-3 py-1.5 rounded border border-gold/40 text-gold hover:bg-gold/10 transition-colors disabled:opacity-50"
+              >
+                {bulkMutation.isPending ? 'Importing...' : 'Import Categories'}
+              </button>
+            </div>
           </div>
           {bulkError ? <p className="font-mono text-xs text-coral mt-2">{bulkError}</p> : null}
         </div>

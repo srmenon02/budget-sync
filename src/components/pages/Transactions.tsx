@@ -8,6 +8,7 @@ import { bulkImportTransactions, deleteTransaction, resetTransactions, updateTra
 import { Card, EmptyState, Spinner } from '@/components/ui'
 import { AddTransactionModal } from '@/components/features/AddTransactionModal'
 import type { Transaction } from '@/components/index'
+import { useBudgetViewStore } from '@/stores/budgetViewStore'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
@@ -28,6 +29,16 @@ type EditableTransaction = {
   description: string
   category: string
   date: string
+}
+
+function downloadTemplateFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 function parseStrictTransactionRows(rows: string[][]): BulkTxItem[] {
@@ -111,6 +122,7 @@ function TransactionRow({
   onDelete,
   isSaving,
   isDeleting,
+  editValidationError,
 }: {
   tx: Transaction
   isEditing: boolean
@@ -122,6 +134,7 @@ function TransactionRow({
   onDelete: (tx: Transaction) => void
   isSaving: boolean
   isDeleting: boolean
+  editValidationError: string | null
 }) {
   const amount = tx.amount ?? 0
   const isExpense = amount < 0
@@ -178,6 +191,9 @@ function TransactionRow({
             {isSaving ? 'Saving...' : 'Save'}
           </button>
         </div>
+        {editValidationError ? (
+          <p className="mt-2 font-mono text-xs text-coral">{editValidationError}</p>
+        ) : null}
       </div>
     )
   }
@@ -219,6 +235,16 @@ function TransactionRow({
 }
 
 export default function Transactions() {
+  const mode = useBudgetViewStore((state) => state.mode)
+  const month = new Date().toISOString().slice(0, 7)
+  const now = new Date()
+  const year = now.getFullYear()
+  const monthIndex = now.getMonth()
+  const day = now.getDate()
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate()
+  const paycheckStart = day <= 15 ? `${month}-01` : `${month}-16`
+  const paycheckEnd = day <= 15 ? `${month}-15` : `${month}-${String(lastDay).padStart(2, '0')}`
+
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [sort, setSort] = useState<'date' | 'amount' | 'category'>('date')
@@ -232,18 +258,20 @@ export default function Transactions() {
   const [showAdd, setShowAdd] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editModel, setEditModel] = useState<EditableTransaction | null>(null)
+  const [editValidationError, setEditValidationError] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const accounts = useAccounts()
   const { data, isLoading, isError } = useTransactions({
     limit: 200,
     page: 1,
+    month: mode === 'monthly' && !startDate && !endDate ? month : undefined,
     search: search || undefined,
     category: category || undefined,
     account_id: accountId || undefined,
     type: txType || undefined,
-    start_date: startDate || undefined,
-    end_date: endDate || undefined,
+    start_date: startDate || (mode === 'paycheck' ? paycheckStart : undefined),
+    end_date: endDate || (mode === 'paycheck' ? paycheckEnd : undefined),
     sort,
     sort_dir: sortDir,
   })
@@ -346,7 +374,9 @@ export default function Transactions() {
     <div className="app-page">
       <div className="flex items-end justify-between gap-4 animate-fade-up">
         <div>
-          <p className="section-kicker mb-2">All</p>
+          <p className="section-kicker mb-2">
+            {mode === 'monthly' ? `Monthly (${month})` : `Paycheck (${paycheckStart} to ${paycheckEnd})`}
+          </p>
           <h1
             className="font-display text-4xl md:text-5xl text-parchment leading-none"
             style={{ fontVariationSettings: '"opsz" 72, "wght" 300', fontStyle: 'italic' }}
@@ -430,7 +460,7 @@ export default function Transactions() {
         <textarea
           value={bulkInput}
           onChange={(event) => setBulkInput(event.target.value)}
-          placeholder={csvTemplate}
+          placeholder=""
           rows={5}
         />
         <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -449,27 +479,36 @@ export default function Transactions() {
               className="text-xs"
             />
           </label>
-          <button
-            type="button"
-            onClick={() => {
-              setBulkError(null)
-              if (!accountId) {
-                setBulkError('Select an account before importing income and expenses.')
-                return
-              }
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => downloadTemplateFile('income-expenses-template.csv', csvTemplate)}
+              className="font-mono text-xs px-3 py-1.5 rounded border border-ink-border text-parchment-dim hover:text-parchment transition-colors"
+            >
+              Download Template
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setBulkError(null)
+                if (!accountId) {
+                  setBulkError('Select an account before importing income and expenses.')
+                  return
+                }
 
-              try {
-                const parsed = parseStrictTransactionRows(parseCsvTextRows(bulkInput))
-                bulkImportMutation.mutate(parsed)
-              } catch (error) {
-                setBulkError(error instanceof Error ? error.message : 'Failed to parse pasted rows.')
-              }
-            }}
-            disabled={bulkImportMutation.isPending}
-            className="font-mono text-xs px-3 py-1.5 rounded border border-gold/40 text-gold hover:bg-gold/10 transition-colors disabled:opacity-50"
-          >
-            {bulkImportMutation.isPending ? 'Importing...' : 'Import Income/Expenses'}
-          </button>
+                try {
+                  const parsed = parseStrictTransactionRows(parseCsvTextRows(bulkInput))
+                  bulkImportMutation.mutate(parsed)
+                } catch (error) {
+                  setBulkError(error instanceof Error ? error.message : 'Failed to parse pasted rows.')
+                }
+              }}
+              disabled={bulkImportMutation.isPending}
+              className="font-mono text-xs px-3 py-1.5 rounded border border-gold/40 text-gold hover:bg-gold/10 transition-colors disabled:opacity-50"
+            >
+              {bulkImportMutation.isPending ? 'Importing...' : 'Import Income/Expenses'}
+            </button>
+          </div>
         </div>
         {bulkError ? <p className="font-mono text-xs text-coral mt-2">{bulkError}</p> : null}
       </Card>
@@ -488,11 +527,11 @@ export default function Transactions() {
               <p className="text-parchment text-lg">{data?.totalCount ?? rows.length}</p>
             </div>
             <div className="font-mono rounded-lg border border-jade/20 bg-jade/5 px-4 py-3.5 text-center">
-              <p className="text-xs text-parchment-dim mb-1">In</p>
+              <p className="text-xs text-parchment-dim mb-1">{mode === 'monthly' ? 'Monthly In' : 'Paycheck In'}</p>
               <p className="text-jade text-lg">{fmt(totalIn)}</p>
             </div>
             <div className="font-mono rounded-lg border border-coral/20 bg-coral/5 px-4 py-3.5 text-center">
-              <p className="text-xs text-parchment-dim mb-1">Out</p>
+              <p className="text-xs text-parchment-dim mb-1">{mode === 'monthly' ? 'Monthly Out' : 'Paycheck Out'}</p>
               <p className="text-coral text-lg">{fmt(totalOut)}</p>
             </div>
           </div>
@@ -509,6 +548,7 @@ export default function Transactions() {
                   isDeleting={deleteMutation.isPending}
                   onStartEdit={(row) => {
                     setEditingId(row.id)
+                    setEditValidationError(null)
                     setEditModel({
                       txType: (row.amount ?? 0) < 0 ? 'expense' : 'income',
                       amount: String(Math.abs(row.amount ?? 0)),
@@ -520,14 +560,22 @@ export default function Transactions() {
                   onCancelEdit={() => {
                     setEditingId(null)
                     setEditModel(null)
+                    setEditValidationError(null)
                   }}
                   onChangeEdit={setEditModel}
                   onSaveEdit={(row) => {
                     if (!editModel) return
                     const parsedAmount = Number(editModel.amount)
                     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+                      setEditValidationError('Amount must be a number greater than 0.')
                       return
                     }
+                    if (!editModel.date || !/^\d{4}-\d{2}-\d{2}$/.test(editModel.date)) {
+                      setEditValidationError('Date must be in YYYY-MM-DD format.')
+                      return
+                    }
+
+                    setEditValidationError(null)
 
                     updateMutation.mutate({
                       transactionId: row.id,
@@ -546,6 +594,7 @@ export default function Transactions() {
                     }
                     deleteMutation.mutate(row.id)
                   }}
+                  editValidationError={editingId === tx.id ? editValidationError : null}
                 />
               ))}
             </div>

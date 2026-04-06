@@ -5,6 +5,7 @@ import { useBudgets } from '@/components/hooks/useBudgets'
 import { useTransactions } from '@/components/hooks/useTransactions'
 import { Card, Spinner, Badge, EmptyState } from '@/components/ui'
 import type { FinancialAccount, Transaction } from '@/components/index'
+import { useBudgetViewStore } from '@/stores/budgetViewStore'
 
 function fmt(amount: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
@@ -61,10 +62,28 @@ function TransactionRow({ tx }: { tx: Transaction }) {
 }
 
 export default function Dashboard() {
+  const mode = useBudgetViewStore((state) => state.mode)
+  const setMode = useBudgetViewStore((state) => state.setMode)
   const month = new Date().toISOString().slice(0, 7)
+  const now = new Date()
+  const year = now.getFullYear()
+  const monthIndex = now.getMonth()
+  const day = now.getDate()
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate()
+  const paycheckStart = day <= 15 ? `${month}-01` : `${month}-16`
+  const paycheckEnd = day <= 15 ? `${month}-15` : `${month}-${String(lastDay).padStart(2, '0')}`
+
   const accountSummary = useAccountSummary()
-  const budgets = useBudgets(month, 'monthly')
-  const transactions = useTransactions({ limit: 25, page: 1, month, sort: 'date', sort_dir: 'desc' })
+  const budgets = useBudgets(month, mode)
+  const transactions = useTransactions({
+    limit: 25,
+    page: 1,
+    month: mode === 'monthly' ? month : undefined,
+    start_date: mode === 'paycheck' ? paycheckStart : undefined,
+    end_date: mode === 'paycheck' ? paycheckEnd : undefined,
+    sort: 'date',
+    sort_dir: 'desc',
+  })
 
   const txRows = transactions.data?.transactions ?? []
 
@@ -73,22 +92,49 @@ export default function Dashboard() {
     budget: budget.limit,
     actual: budget.spent,
   }))
+  const chartHeight = Math.max(280, chartRows.length * 46)
 
   const accountRows = accountSummary.data?.accounts ?? []
 
   return (
     <div className="app-page">
       {/* Header */}
-      <div className="animate-fade-up">
-        <p className="section-kicker mb-2">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-        </p>
-        <h1
-          className="font-display text-4xl md:text-5xl text-parchment leading-none"
-          style={{ fontVariationSettings: '"opsz" 72, "wght" 300', fontStyle: 'italic' }}
-        >
-          Overview
-        </h1>
+      <div className="animate-fade-up flex items-end justify-between gap-4">
+        <div>
+          <p className="section-kicker mb-2">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </p>
+          <h1
+            className="font-display text-4xl md:text-5xl text-parchment leading-none"
+            style={{ fontVariationSettings: '"opsz" 72, "wght" 300', fontStyle: 'italic' }}
+          >
+            Overview
+          </h1>
+        </div>
+        <div className="flex items-center gap-1 pb-1">
+          <button
+            type="button"
+            onClick={() => setMode('monthly')}
+            className={`font-mono text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              mode === 'monthly'
+                ? 'border-gold/60 text-gold bg-gold-faint'
+                : 'border-ink-border text-parchment-dim hover:text-parchment hover:border-ink-border/80'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('paycheck')}
+            className={`font-mono text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              mode === 'paycheck'
+                ? 'border-gold/60 text-gold bg-gold-faint'
+                : 'border-ink-border text-parchment-dim hover:text-parchment hover:border-ink-border/80'
+            }`}
+          >
+            Paycheck
+          </button>
+        </div>
       </div>
 
       {/* Accounts */}
@@ -110,7 +156,9 @@ export default function Dashboard() {
       </section>
 
       <section className="app-section animate-fade-up delay-2">
-        <h2 className="section-kicker">Budget vs Actual ({month})</h2>
+        <h2 className="section-kicker">
+          Budget vs Actual ({mode === 'monthly' ? month : `${paycheckStart} to ${paycheckEnd}`})
+        </h2>
         {budgets.isLoading ? (
           <Spinner />
         ) : budgets.isError ? (
@@ -119,22 +167,27 @@ export default function Dashboard() {
           <EmptyState message="No budgets set yet for this month." />
         ) : (
           <Card>
-            <div className="h-[280px]">
+            <div style={{ height: `${chartHeight}px` }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartRows} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
+                <BarChart
+                  data={chartRows}
+                  layout="vertical"
+                  margin={{ left: 18, right: 16, top: 8, bottom: 8 }}
+                >
                   <CartesianGrid stroke="#2f2f2f" strokeDasharray="3 3" />
-                  <XAxis
+                  <XAxis type="number" stroke="#a5a19a" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    type="category"
                     dataKey="category"
+                    width={130}
                     stroke="#a5a19a"
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                    tickMargin={10}
+                    tick={{ fontSize: 11 }}
+                    tickMargin={6}
                     tickFormatter={(value: string) => (value && value.trim() ? value : 'Uncategorized')}
                   />
-                  <YAxis stroke="#a5a19a" tick={{ fontSize: 12 }} />
                   <Tooltip />
-                  <Bar dataKey="budget" fill="#d4a84a" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="actual" fill="#d96f5f" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="budget" fill="#d4a84a" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="actual" fill="#d96f5f" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

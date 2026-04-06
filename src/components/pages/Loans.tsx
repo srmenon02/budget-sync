@@ -81,10 +81,6 @@ function LoanCard({ loan, onDelete }: { loan: Loan; onDelete: (loanId: string) =
           <p className="mt-4 font-mono text-xl leading-none text-gold md:text-2xl">{loan.interest_rate.toFixed(2)}%</p>
         </div>
       </div>
-
-      <p className="mt-6 max-w-3xl font-mono text-xs leading-relaxed text-parchment-dim md:text-sm">
-        Add a manual transaction and attach it to this loan to update the balance automatically.
-      </p>
     </Card>
   )
 }
@@ -135,9 +131,6 @@ export default function LoansPage() {
           >
             Loans
           </h1>
-          <p className="mt-3 max-w-2xl font-mono text-sm text-parchment-dim">
-            Keep the original balance visible, track the current balance, and use transactions to move each loan toward zero.
-          </p>
         </div>
         <button
           type="button"
