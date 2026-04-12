@@ -516,6 +516,18 @@ export const createBudget = async (payload: {
 export const resetBudget = async (budgetId: string): Promise<BudgetResponse> => {
   try {
     const { data } = await client.post<BudgetResponse>(`/budgets/${budgetId}/reset`)
+
+    // Keep Income/Expenses aligned with budget reset for the active month.
+    try {
+      await client.delete('/transactions/current', {
+        params: {
+          month: monthKey(new Date()),
+        },
+      })
+    } catch {
+      // Some backend variants may not support this reset path.
+    }
+
     clearStoredActiveBudget()
     return data
   } catch {
@@ -526,6 +538,16 @@ export const resetBudget = async (budgetId: string): Promise<BudgetResponse> => 
         period: 'monthly',
       },
     })
+
+    try {
+      await client.delete('/transactions/current', {
+        params: {
+          month: monthFromLegacyBudgetId(budgetId),
+        },
+      })
+    } catch {
+      // Ignore if transactions endpoint variant differs.
+    }
 
     clearStoredActiveBudget()
     const nowIso = new Date().toISOString()

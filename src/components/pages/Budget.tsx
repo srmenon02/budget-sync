@@ -6,6 +6,64 @@ import type { BudgetWithSpent } from '@/api/budgets'
 import type { BudgetCategoryInput } from '@/api/budgets'
 import type { AxiosError } from 'axios'
 
+const BUDGET_IMPORT_TEMPLATE =
+  'category,amount\nGroceries,500\nRent,800\nTransport,200\n'
+
+function downloadBudgetTemplate() {
+  const blob = new Blob([BUDGET_IMPORT_TEMPLATE], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = 'budget-template.csv'
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+function parseCsvRows(rawText: string): string[][] {
+  return rawText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.split(',').map((cell) => cell.trim()))
+}
+
+function parseBudgetRows(rows: string[][]): BudgetCategoryInput[] {
+  if (rows.length === 0) {
+    throw new Error('Add at least one subcategory row in the format: category,amount')
+  }
+
+  const firstRow = rows[0].map((cell) => cell.toLowerCase())
+  const hasHeader = firstRow[0] === 'category' && firstRow[1] === 'amount'
+
+  const dataRows = (hasHeader ? rows.slice(1) : rows).filter((row) =>
+    row.some((cell) => cell.length > 0),
+  )
+  if (dataRows.length === 0) {
+    throw new Error('No data rows found.')
+  }
+
+  const categories: BudgetCategoryInput[] = []
+  for (let i = 0; i < dataRows.length; i++) {
+    const lineNumber = i + 2
+    const row = dataRows[i]
+    const categoryName = String(row[0] ?? '').trim()
+    const categoryAmountRaw = String(row[1] ?? '').trim()
+
+    if (!categoryName) throw new Error(`Row ${lineNumber}: category name is required.`)
+    const categoryAmount = Number(categoryAmountRaw)
+    if (!Number.isFinite(categoryAmount) || categoryAmount < 0) {
+      throw new Error(`Row ${lineNumber}: amount must be a non-negative number.`)
+    }
+    categories.push({ name: categoryName, amount: categoryAmount })
+  }
+
+  if (categories.length === 0) {
+    throw new Error('At least one category row is required.')
+  }
+
+  return categories
+}
+
 function fmt(amount: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 }
@@ -20,6 +78,11 @@ export default function BudgetPage() {
   ])
   const [error, setError] = useState<string | null>(null)
   const [createdBudgetFallback, setCreatedBudgetFallback] = useState<BudgetWithSpent | null>(null)
+  const [showBulkImport, setShowBulkImport] = useState(false)
+  const [bulkName, setBulkName] = useState('')
+  const [bulkTotalAmount, setBulkTotalAmount] = useState('')
+  const [bulkInput, setBulkInput] = useState('')
+  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const { data: activeBudget, isLoading, isError } = useQuery({
     queryKey: ['active-budget'],
@@ -88,6 +151,10 @@ export default function BudgetPage() {
       setError(null)
       setCreatedBudgetFallback(null)
       queryClient.invalidateQueries({ queryKey: ['active-budget'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
+      queryClient.invalidateQueries({ queryKey: ['loans'] })
     },
     onError: () => {
       setError('Failed to reset budget.')
@@ -110,6 +177,29 @@ export default function BudgetPage() {
       setError('Failed to export budget.')
     },
   })
+
+  function handleBulkPasteImport() {
+    setBulkError(null)
+    try {
+      if (!bulkName.trim()) throw new Error('Budget name is required.')
+      const totalAmount = Number(bulkTotalAmount)
+      if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+        throw new Error('Total budget amount must be a number greater than 0.')
+      }
+      const categories = parseBudgetRows(parseCsvRows(bulkInput))
+      const allocatedTotal = categories.reduce((sum, cat) => sum + cat.amount, 0)
+      if (allocatedTotal > totalAmount) {
+        throw new Error(`Category totals (${allocatedTotal}) exceed the total budget amount (${totalAmount}).`)
+      }
+      createMutation.mutate({ name: bulkName.trim(), total_amount: totalAmount, categories })
+      setShowBulkImport(false)
+      setBulkInput('')
+      setBulkName('')
+      setBulkTotalAmount('')
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : 'Failed to parse pasted rows.')
+    }
+  }
 
   const remaining = useMemo(() => {
     const displayedBudget = activeBudget ?? createdBudgetFallback
@@ -166,15 +256,86 @@ export default function BudgetPage() {
         <Spinner />
       ) : isError ? (
         <p className="text-sm font-mono text-coral">Failed to load budget.</p>
-      ) : !displayedBudget && !showCreateForm ? (
+      ) : !displayedBudget && !showCreateForm && !showBulkImport ? (
         <Card className="animate-fade-up delay-1 text-center py-8">
           <EmptyState message="No active budget yet. Create one to track your spending." />
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="mt-4 font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors"
-          >
-            Create Budget
-          </button>
+          <div className="flex gap-2 justify-center mt-4">
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors"
+            >
+              Create Budget
+            </button>
+            <button
+              onClick={() => setShowBulkImport(true)}
+              className="font-mono text-xs px-4 py-2.5 rounded-lg border border-gold/40 text-gold hover:bg-gold/10 transition-colors"
+            >
+              Import Budget
+            </button>
+          </div>
+        </Card>
+      ) : showBulkImport ? (
+        <Card className="animate-fade-up delay-1">
+          <p className="font-mono text-xs text-parchment-dim mb-4">Import Budget</p>
+          <div className="space-y-3 mb-4">
+            <div>
+              <label className="block text-xs font-mono text-parchment-dim mb-1">Budget Name</label>
+              <input
+                type="text"
+                value={bulkName}
+                onChange={(e) => setBulkName(e.target.value)}
+                placeholder="e.g. April Household Budget"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-parchment-dim mb-1">Total Budget Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={bulkTotalAmount}
+                onChange={(e) => setBulkTotalAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+          <p className="font-mono text-xs text-parchment-dim mb-1">Subcategories</p>
+          <p className="font-mono text-xs text-parchment-dim mb-2">
+            Format: category,amount (one per line, header optional)
+          </p>
+          <textarea
+            value={bulkInput}
+            onChange={(e) => setBulkInput(e.target.value)}
+            rows={5}
+            placeholder="Groceries,500&#10;Rent,800&#10;Transport,200"
+          />
+          <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={downloadBudgetTemplate}
+                className="font-mono text-xs px-3 py-1.5 rounded border border-ink-border text-parchment-dim hover:text-parchment transition-colors"
+              >
+                Download Template
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkPasteImport}
+                disabled={createMutation.isPending}
+                className="font-mono text-xs px-3 py-1.5 rounded border border-gold/40 text-gold hover:bg-gold/10 transition-colors disabled:opacity-50"
+              >
+                {createMutation.isPending ? 'Importing...' : 'Import Budget'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowBulkImport(false); setBulkInput(''); setBulkName(''); setBulkTotalAmount(''); setBulkError(null) }}
+                className="font-mono text-xs px-3 py-1.5 rounded border border-ink-border text-parchment-dim hover:text-parchment transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+          {bulkError ? <p className="font-mono text-xs text-coral mt-2">{bulkError}</p> : null}
         </Card>
       ) : showCreateForm ? (
         <Card className="animate-fade-up delay-1">
@@ -381,6 +542,13 @@ export default function BudgetPage() {
                 className="font-mono text-xs px-4 py-2.5 rounded-lg border border-ink-border text-parchment hover:bg-ink-card transition-colors"
               >
                 Add Category Budget
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowBulkImport(true); setBulkError(null) }}
+                className="font-mono text-xs px-4 py-2.5 rounded-lg border border-ink-border text-parchment hover:bg-ink-card transition-colors"
+              >
+                Import Budget
               </button>
               <button
                 type="button"
