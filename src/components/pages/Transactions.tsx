@@ -3,12 +3,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import * as XLSX from 'xlsx'
 
 import { useAccounts } from '@/components/hooks/useAccounts'
+import { useBudgets } from '@/components/hooks/useBudgets'
+import {
+  OTHER_CATEGORY_NAME,
+  ensureOtherBudgetCategory,
+  getTransactionCategoryOptions,
+} from '@/api/budgets'
 import { useTransactions } from '@/components/hooks/useTransactions'
 import { bulkImportTransactions, deleteTransaction, resetTransactions, updateTransaction } from '@/api/transactions'
 import { Card, EmptyState, Spinner } from '@/components/ui'
 import { AddTransactionModal } from '@/components/features/AddTransactionModal'
 import type { Transaction } from '@/components/index'
-import { useBudgetViewStore } from '@/stores/budgetViewStore'
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
@@ -41,7 +46,7 @@ function downloadTemplateFile(filename: string, content: string) {
   URL.revokeObjectURL(url)
 }
 
-function parseStrictTransactionRows(rows: string[][]): BulkTxItem[] {
+function parseStrictTransactionRows(rows: string[][], allowedCategories: string[]): BulkTxItem[] {
   if (rows.length < 2) {
     throw new Error('File must include headers and at least one data row.')
   }
@@ -78,6 +83,13 @@ function parseStrictTransactionRows(rows: string[][]): BulkTxItem[] {
       throw new Error(`Line ${lineNumber}: amount must be a number greater than 0.`)
     }
 
+    if (!category) {
+      throw new Error(`Line ${lineNumber}: category is required.`)
+    }
+    if (!allowedCategories.includes(category)) {
+      throw new Error(`Line ${lineNumber}: category must match a budget subcategory.`)
+    }
+
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
       throw new Error(`Line ${lineNumber}: date must be YYYY-MM-DD.`)
     }
@@ -89,7 +101,7 @@ function parseStrictTransactionRows(rows: string[][]): BulkTxItem[] {
     parsed.push({
       description,
       amount,
-      category: category || undefined,
+      category,
       date: dateValue,
       notes: notes || undefined,
       tx_type: typeRaw,
@@ -125,6 +137,7 @@ function TransactionRow({
   isSaving,
   isDeleting,
   editValidationError,
+  categoryOptions,
 }: {
   tx: Transaction
   showPaidOffToggle: boolean
@@ -139,6 +152,7 @@ function TransactionRow({
   isSaving: boolean
   isDeleting: boolean
   editValidationError: string | null
+  categoryOptions: string[]
 }) {
   const amount = tx.amount ?? 0
   const isExpense = amount < 0
@@ -167,11 +181,18 @@ function TransactionRow({
             <option value="expense">Expense</option>
             <option value="income">Income</option>
           </select>
-          <input
+          <select
             value={editable.category}
             onChange={(e) => onChangeEdit({ ...editable, category: e.target.value })}
-            placeholder="Category"
-          />
+          >
+            <option value="">Select category</option>
+            {categoryOptions.includes(editable.category) ? null : (
+              <option value={editable.category}>{editable.category || 'Uncategorized'}</option>
+            )}
+            {categoryOptions.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
           <input
             type="date"
             value={editable.date}
@@ -212,7 +233,6 @@ function TransactionRow({
           {tx.category ? <span className="font-mono text-xs text-gold/70">{tx.category}</span> : null}
           <span className="font-mono text-xs text-parchment-dim">{tx.transaction_date}</span>
           {tx.is_manual ? <span className="font-mono text-xs text-parchment-dim/50 border border-ink-border px-1 rounded">manual</span> : null}
-          {tx.paycheck_number ? <span className="font-mono text-xs text-jade/70 border border-jade/30 px-1 rounded">paycheck {tx.paycheck_number}</span> : null}
         </div>
       </div>
       <div className="flex items-center gap-3 shrink-0">
@@ -250,15 +270,7 @@ function TransactionRow({
 }
 
 export default function Transactions() {
-  const mode = useBudgetViewStore((state) => state.mode)
   const month = new Date().toISOString().slice(0, 7)
-  const now = new Date()
-  const year = now.getFullYear()
-  const monthIndex = now.getMonth()
-  const day = now.getDate()
-  const lastDay = new Date(year, monthIndex + 1, 0).getDate()
-  const paycheckStart = day <= 15 ? `${month}-01` : `${month}-16`
-  const paycheckEnd = day <= 15 ? `${month}-15` : `${month}-${String(lastDay).padStart(2, '0')}`
 
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
@@ -274,26 +286,30 @@ export default function Transactions() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editModel, setEditModel] = useState<EditableTransaction | null>(null)
   const [editValidationError, setEditValidationError] = useState<string | null>(null)
-  const [paycheckNumber, setPaycheckNumber] = useState<'' | number>('')
   const queryClient = useQueryClient()
 
   const accounts = useAccounts()
+  const budget = useBudgets()
   const { data, isLoading, isError } = useTransactions({
     limit: 200,
     page: 1,
-    month: mode === 'monthly' && !startDate && !endDate ? month : undefined,
+    month: !startDate && !endDate ? month : undefined,
     search: search || undefined,
     category: category || undefined,
     account_id: accountId || undefined,
     type: txType || undefined,
-    start_date: startDate || (mode === 'paycheck' ? paycheckStart : undefined),
-    end_date: endDate || (mode === 'paycheck' ? paycheckEnd : undefined),
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
     sort,
-    paycheck_number: paycheckNumber ? Number(paycheckNumber) : undefined,
     sort_dir: sortDir,
   })
 
   const rows = data?.transactions ?? []
+  const transactionCategoryOptions = useMemo(
+    () => getTransactionCategoryOptions(budget.data),
+    [budget.data],
+  )
+  const canLogTransactions = Boolean(budget.data)
   const accountsById = useMemo(
     () => new Map((accounts.data ?? []).map((account) => [account.id, account])),
     [accounts.data],
@@ -310,6 +326,7 @@ export default function Transactions() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['active-budget'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
       queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
@@ -317,15 +334,21 @@ export default function Transactions() {
   })
 
   const bulkImportMutation = useMutation({
-    mutationFn: (items: BulkTxItem[]) =>
-      bulkImportTransactions({
+    mutationFn: async (items: BulkTxItem[]) => {
+      const hasOther = items.some((item) => item.category === OTHER_CATEGORY_NAME)
+      if (hasOther) {
+        await ensureOtherBudgetCategory()
+      }
+      return bulkImportTransactions({
         account_id: accountId,
         items,
-      }),
+      })
+    },
     onSuccess: () => {
       setBulkInput('')
       setBulkError(null)
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['active-budget'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
       queryClient.invalidateQueries({ queryKey: ['loans'] })
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
@@ -337,12 +360,17 @@ export default function Transactions() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: (params: { transactionId: string; payload: { amount?: number; description?: string; category?: string; date?: string; is_paid_off?: boolean } }) =>
-      updateTransaction(params.transactionId, params.payload),
+    mutationFn: async (params: { transactionId: string; payload: { amount?: number; description?: string; category?: string; date?: string; is_paid_off?: boolean } }) => {
+      if (params.payload.category === OTHER_CATEGORY_NAME) {
+        await ensureOtherBudgetCategory()
+      }
+      return updateTransaction(params.transactionId, params.payload)
+    },
     onSuccess: () => {
       setEditingId(null)
       setEditModel(null)
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['active-budget'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
       queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
@@ -353,6 +381,7 @@ export default function Transactions() {
     mutationFn: (transactionId: string) => deleteTransaction(transactionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['active-budget'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
       queryClient.invalidateQueries({ queryKey: ['loans'] })
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
@@ -374,6 +403,10 @@ export default function Transactions() {
       setBulkError('Select an account before importing.')
       return
     }
+    if (!canLogTransactions) {
+      setBulkError('Create an active budget with subcategories before importing transactions.')
+      return
+    }
 
     try {
       const ext = file.name.split('.').pop()?.toLowerCase()
@@ -392,7 +425,7 @@ export default function Transactions() {
         throw new Error('Only .csv, .xlsx, or .xls files are supported.')
       }
 
-      const parsed = parseStrictTransactionRows(rows)
+      const parsed = parseStrictTransactionRows(rows, transactionCategoryOptions)
       bulkImportMutation.mutate(parsed)
     } catch (error) {
       setBulkError(error instanceof Error ? error.message : 'Failed to parse file.')
@@ -403,9 +436,6 @@ export default function Transactions() {
     <div className="app-page">
       <div className="flex items-end justify-between gap-4 animate-fade-up">
         <div>
-          <p className="section-kicker mb-2">
-            {mode === 'monthly' ? `Monthly (${month})` : `Paycheck (${paycheckStart} to ${paycheckEnd})`}
-          </p>
           <h1
             className="font-display text-4xl md:text-5xl text-parchment leading-none"
             style={{ fontVariationSettings: '"opsz" 72, "wght" 300', fontStyle: 'italic' }}
@@ -430,14 +460,26 @@ export default function Transactions() {
           </button>
           <button
             onClick={() => setShowAdd(true)}
+            disabled={!canLogTransactions}
             className="font-mono text-xs px-4 py-2.5 rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors whitespace-nowrap"
+            title={!canLogTransactions ? 'Set up a budget with subcategories first' : undefined}
           >
             + add income or expense
           </button>
         </div>
       </div>
 
-      {showAdd && <AddTransactionModal onClose={() => setShowAdd(false)} />}
+      {!canLogTransactions ? (
+        <Card className="animate-fade-up delay-1 border-coral/30 bg-coral/5">
+          <p className="font-mono text-xs text-coral">
+            Set up an active budget with subcategories before logging or importing transactions.
+          </p>
+        </Card>
+      ) : null}
+
+      {showAdd && canLogTransactions ? (
+        <AddTransactionModal onClose={() => setShowAdd(false)} budgetCategories={transactionCategoryOptions} />
+      ) : null}
 
       <Card className="animate-fade-up delay-1">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
@@ -462,14 +504,6 @@ export default function Transactions() {
             <option value="">All types</option>
             <option value="income">Income</option>
             <option value="expense">Expense</option>
-          </select>
-          <select value={paycheckNumber} onChange={(e) => setPaycheckNumber(e.target.value === '' ? '' : Number(e.target.value))}>
-            <option value="">All paychecks</option>
-            <option value="1">Paycheck 1</option>
-            <option value="2">Paycheck 2</option>
-            <option value="3">Paycheck 3</option>
-            <option value="4">Paycheck 4</option>
-            <option value="5">Paycheck 5</option>
           </select>
           <div className="xl:col-span-2 grid grid-cols-2 gap-2">
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} title="From date" />
@@ -534,7 +568,11 @@ export default function Transactions() {
                 }
 
                 try {
-                  const parsed = parseStrictTransactionRows(parseCsvTextRows(bulkInput))
+                  if (!canLogTransactions) {
+                    setBulkError('Create an active budget with subcategories before importing transactions.')
+                    return
+                  }
+                  const parsed = parseStrictTransactionRows(parseCsvTextRows(bulkInput), transactionCategoryOptions)
                   bulkImportMutation.mutate(parsed)
                 } catch (error) {
                   setBulkError(error instanceof Error ? error.message : 'Failed to parse pasted rows.')
@@ -564,11 +602,11 @@ export default function Transactions() {
               <p className="text-parchment text-lg">{data?.totalCount ?? rows.length}</p>
             </div>
             <div className="font-mono rounded-lg border border-jade/20 bg-jade/5 px-4 py-3.5 text-center">
-              <p className="text-xs text-parchment-dim mb-1">{mode === 'monthly' ? 'Monthly In' : 'Paycheck In'}</p>
+              <p className="text-xs text-parchment-dim mb-1">In</p>
               <p className="text-jade text-lg">{fmt(totalIn)}</p>
             </div>
             <div className="font-mono rounded-lg border border-coral/20 bg-coral/5 px-4 py-3.5 text-center">
-              <p className="text-xs text-parchment-dim mb-1">{mode === 'monthly' ? 'Monthly Out' : 'Paycheck Out'}</p>
+              <p className="text-xs text-parchment-dim mb-1">Out</p>
               <p className="text-coral text-lg">{fmt(totalOut)}</p>
             </div>
           </div>
@@ -620,6 +658,10 @@ export default function Transactions() {
                       setEditValidationError('Date must be in YYYY-MM-DD format.')
                       return
                     }
+                    if (!editModel.category || !transactionCategoryOptions.includes(editModel.category)) {
+                      setEditValidationError('Category must match a budget subcategory.')
+                      return
+                    }
 
                     setEditValidationError(null)
 
@@ -633,6 +675,7 @@ export default function Transactions() {
                       },
                     })
                   }}
+                  categoryOptions={transactionCategoryOptions}
                   onDelete={(row) => {
                     const confirmed = window.confirm('Delete this income/expense entry?')
                     if (!confirmed) {

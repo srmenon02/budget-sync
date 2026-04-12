@@ -34,7 +34,7 @@ class BudgetRead(BaseModel):
     month: str
     year: str
     period: BudgetPeriod
-    paycheck_number: Optional[int]
+    paycheck_number: Optional[int] = None
 
     model_config = {"from_attributes": True}
 
@@ -46,7 +46,7 @@ class BudgetActualRead(BaseModel):
     remaining: float
     over_budget: bool
     period: BudgetPeriod
-    paycheck_number: Optional[int]
+    paycheck_number: Optional[int] = None
 
 
 class BudgetCurrentResponse(BaseModel):

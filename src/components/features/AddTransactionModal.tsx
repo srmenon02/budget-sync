@@ -1,24 +1,21 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createTransaction } from '@/api/transactions'
+import { OTHER_CATEGORY_NAME, ensureOtherBudgetCategory } from '@/api/budgets'
 import { useAccounts } from '@/components/hooks/useAccounts'
 import { useLoans } from '@/components/hooks/useLoans'
 import { Modal, Spinner } from '@/components/ui'
 
-const CATEGORIES = [
-  'Food & Drink', 'Groceries', 'Shopping', 'Transport', 'Entertainment',
-  'Health', 'Housing', 'Utilities', 'Income', 'Transfer', 'Other',
-]
-
 interface Props {
   onClose: () => void
+  budgetCategories: string[]
 }
 
 function todayISO() {
   return new Date().toISOString().split('T')[0]
 }
 
-export function AddTransactionModal({ onClose }: Props) {
+export function AddTransactionModal({ onClose, budgetCategories }: Props) {
   const queryClient = useQueryClient()
   const { data: accounts, isLoading: accountsLoading } = useAccounts()
   const { data: loans, isLoading: loansLoading } = useLoans()
@@ -35,8 +32,11 @@ export function AddTransactionModal({ onClose }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createTransaction({
+    mutationFn: async () => {
+      if (category === OTHER_CATEGORY_NAME) {
+        await ensureOtherBudgetCategory()
+      }
+      return createTransaction({
         amount: txType === 'expense' ? -Math.abs(Number(amount)) : Math.abs(Number(amount)),
         date,
         merchant_name: merchant || undefined,
@@ -46,9 +46,12 @@ export function AddTransactionModal({ onClose }: Props) {
         notes: notes || undefined,
         is_manual: true,
         loan_id: txType === 'expense' && loanId ? loanId : undefined,
-      }),
+      })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['active-budget'] })
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
       queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
       queryClient.invalidateQueries({ queryKey: ['loans'] })
@@ -60,10 +63,24 @@ export function AddTransactionModal({ onClose }: Props) {
     },
   })
 
+  const canSubmit = Boolean(accountId) && budgetCategories.length > 0 && category.length > 0
+
   return (
     <Modal title="Add Transaction" onClose={onClose}>
       <form
-        onSubmit={(e) => { e.preventDefault(); setError(null); mutation.mutate() }}
+        onSubmit={(e) => {
+          e.preventDefault()
+          setError(null)
+          if (budgetCategories.length === 0) {
+            setError('Create a budget with subcategories before logging transactions.')
+            return
+          }
+          if (!category || !budgetCategories.includes(category)) {
+            setError('Select a valid budget category before logging a transaction.')
+            return
+          }
+          mutation.mutate()
+        }}
         className="flex flex-col gap-5"
       >
         <div className="flex flex-col gap-1.5">
@@ -136,16 +153,23 @@ export function AddTransactionModal({ onClose }: Props) {
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Category</span>
+          <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Category *</span>
           <select
+            required
             value={category}
             onChange={(e) => setCategory(e.target.value)}
+            disabled={budgetCategories.length === 0}
           >
-            <option value="">— None —</option>
-            {CATEGORIES.map((c) => (
+            <option value="">Select budget category</option>
+            {budgetCategories.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+          {budgetCategories.length === 0 ? (
+            <p className="font-mono text-xs text-coral border border-coral/20 bg-coral/5 rounded-lg px-3 py-2">
+              Create an active budget with subcategories before adding transactions.
+            </p>
+          ) : null}
         </label>
 
         {txType === 'expense' ? (
@@ -213,7 +237,7 @@ export function AddTransactionModal({ onClose }: Props) {
           </button>
           <button
             type="submit"
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || !canSubmit}
             className="px-4 py-2.5 font-mono text-xs rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
           >
             {mutation.isPending ? 'Adding…' : 'Add Transaction'}

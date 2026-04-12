@@ -86,6 +86,7 @@ export default function BudgetPage() {
     mutationFn: (budgetId: string) => resetBudget(budgetId),
     onSuccess: () => {
       setError(null)
+      setCreatedBudgetFallback(null)
       queryClient.invalidateQueries({ queryKey: ['active-budget'] })
     },
     onError: () => {
@@ -361,7 +362,9 @@ export default function BudgetPage() {
                     {displayedBudget.categories.map((cat) => (
                       <div key={`${cat.name}-${cat.limit}`} className="flex items-center justify-between text-sm">
                         <span className="text-parchment">{cat.name}</span>
-                        <span className="font-mono text-parchment-dim">{fmt(cat.limit)}</span>
+                        <span className="font-mono text-parchment-dim">
+                          {fmt(cat.spent ?? 0)}/{fmt(cat.limit)}
+                        </span>
                       </div>
                     ))}
                   </div>
