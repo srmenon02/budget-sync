@@ -1,16 +1,19 @@
 import logging
 import uuid
+
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.user import User
+from app.exceptions import (AccountNotFoundError, ForbiddenError,
+                            TransactionNotFoundError)
 from app.models.account import FinancialAccount
 from app.models.transaction import Transaction
-from app.schemas.transaction import TransactionCreate, TransactionResponse, TransactionUpdate
-from app.exceptions import TransactionNotFoundError, ForbiddenError, AccountNotFoundError
+from app.models.user import User
+from app.schemas.transaction import (TransactionCreate, TransactionResponse,
+                                     TransactionUpdate)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -19,7 +22,9 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 async def _assert_account_owner(
     account_id: uuid.UUID, user: User, db: AsyncSession
 ) -> FinancialAccount:
-    result = await db.execute(select(FinancialAccount).where(FinancialAccount.id == account_id))
+    result = await db.execute(
+        select(FinancialAccount).where(FinancialAccount.id == account_id)
+    )
     account = result.scalar_one_or_none()
     if not account:
         raise AccountNotFoundError()
@@ -52,12 +57,15 @@ async def list_transactions(
 
     if month and year:
         from sqlalchemy import extract
+
         query = query.where(
             extract("month", Transaction.transaction_date) == month,
             extract("year", Transaction.transaction_date) == year,
         )
 
-    query = query.order_by(Transaction.transaction_date.desc()).offset(offset).limit(limit)
+    query = (
+        query.order_by(Transaction.transaction_date.desc()).offset(offset).limit(limit)
+    )
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -92,7 +100,9 @@ async def update_transaction(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Transaction:
-    result = await db.execute(select(Transaction).where(Transaction.id == transaction_id))
+    result = await db.execute(
+        select(Transaction).where(Transaction.id == transaction_id)
+    )
     tx = result.scalar_one_or_none()
     if not tx:
         raise TransactionNotFoundError()
@@ -117,7 +127,9 @@ async def delete_transaction(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    result = await db.execute(select(Transaction).where(Transaction.id == transaction_id))
+    result = await db.execute(
+        select(Transaction).where(Transaction.id == transaction_id)
+    )
     tx = result.scalar_one_or_none()
     if not tx:
         raise TransactionNotFoundError()

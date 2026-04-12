@@ -41,6 +41,7 @@ export interface UserSettings {
   display_name: string | null
   primary_payday_day: number
   secondary_payday_day: number
+  paycheck_frequency: 'weekly' | 'bi-weekly' | 'monthly'
 }
 
 export const register = async (payload: RegisterPayload): Promise<RegisterResponse> => {
@@ -75,8 +76,9 @@ export const fetchCurrentUserSettings = async (): Promise<UserSettings> => {
 
 export const updateCurrentUserSettings = async (payload: {
   display_name?: string | null
-  primary_payday_day: number
-  secondary_payday_day: number
+  primary_payday_day?: number
+  secondary_payday_day?: number
+  paycheck_frequency?: 'weekly' | 'bi-weekly' | 'monthly'
 }): Promise<UserSettings> => {
   const { data } = await client.patch<UserSettings>('/auth/me', payload)
   return data

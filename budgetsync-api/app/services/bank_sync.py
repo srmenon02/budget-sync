@@ -1,5 +1,5 @@
-import os
 import base64
+import os
 from datetime import date, datetime, timezone
 from typing import Any
 
@@ -17,7 +17,9 @@ class TellerSyncService:
     """Stubbed bank-sync facade for Teller integration during MVP scaffolding."""
 
     def __init__(self) -> None:
-        self.app_id = os.getenv("TELLER_APP_ID", "") or os.getenv("TELLER_APPLICATION_ID", "")
+        self.app_id = os.getenv("TELLER_APP_ID", "") or os.getenv(
+            "TELLER_APPLICATION_ID", ""
+        )
         self.environment = _resolve_teller_environment()
 
     async def create_connect_token(self, user_id: str) -> dict[str, object]:
@@ -30,7 +32,9 @@ class TellerSyncService:
             "is_stub": False,
         }
 
-    async def sync_user_accounts(self, db: AsyncSession, user_id: str) -> dict[str, object]:
+    async def sync_user_accounts(
+        self, db: AsyncSession, user_id: str
+    ) -> dict[str, object]:
         result = await sync_teller_accounts_for_user(db, user_id)
         result["provider"] = "teller"
         return result
@@ -49,7 +53,9 @@ def _resolve_teller_environment() -> str:
     if app_env == "production":
         return configured_env or "production"
 
-    allow_live_in_dev = os.getenv("TELLER_ALLOW_PRODUCTION_IN_DEV", "false").lower() == "true"
+    allow_live_in_dev = (
+        os.getenv("TELLER_ALLOW_PRODUCTION_IN_DEV", "false").lower() == "true"
+    )
     if configured_env in {"production", "live"} and not allow_live_in_dev:
         return "sandbox"
 
@@ -78,7 +84,9 @@ def decrypt_teller_access_token(stored_value: str | None) -> str | None:
     if stored_value.startswith("enc:"):
         fernet = _build_fernet()
         if fernet is None:
-            raise ValueError("Missing TELLER_TOKEN_ENCRYPTION_KEY for encrypted Teller token")
+            raise ValueError(
+                "Missing TELLER_TOKEN_ENCRYPTION_KEY for encrypted Teller token"
+            )
         token = stored_value.removeprefix("enc:")
         return fernet.decrypt(token.encode("utf-8")).decode("utf-8")
 
@@ -107,7 +115,9 @@ def _teller_base_url() -> str:
 
 async def fetch_teller_accounts(access_token: str) -> list[dict[str, Any]]:
     async with httpx.AsyncClient(timeout=20.0) as client:
-        response = await client.get(f"{_teller_base_url()}/accounts", headers=_auth_headers(access_token))
+        response = await client.get(
+            f"{_teller_base_url()}/accounts", headers=_auth_headers(access_token)
+        )
     response.raise_for_status()
     data = response.json()
     if not isinstance(data, list):
@@ -115,7 +125,9 @@ async def fetch_teller_accounts(access_token: str) -> list[dict[str, Any]]:
     return [row for row in data if isinstance(row, dict)]
 
 
-async def fetch_teller_transactions(access_token: str, external_account_id: str) -> list[dict[str, Any]]:
+async def fetch_teller_transactions(
+    access_token: str, external_account_id: str
+) -> list[dict[str, Any]]:
     async with httpx.AsyncClient(timeout=20.0) as client:
         response = await client.get(
             f"{_teller_base_url()}/accounts/{external_account_id}/transactions",
@@ -130,10 +142,27 @@ async def fetch_teller_transactions(access_token: str, external_account_id: str)
 
 
 def _extract_balance(raw_account: dict[str, Any]) -> float | None:
+    account_type = str(raw_account.get("type") or "").lower()
+    is_liability = account_type in {"credit", "credit_card", "card", "charge", "loan"}
+
+    if is_liability:
+        nested = raw_account.get("balance")
+        if isinstance(nested, dict):
+            for key in ("ledger", "current", "balance", "available"):
+                value = nested.get(key)
+                if isinstance(value, (int, float)):
+                    return float(value)
+        for key in ("ledger", "current", "balance", "available"):
+            value = raw_account.get(key)
+            if isinstance(value, (int, float)):
+                return float(value)
+        return None
+
     for key in ("ledger", "available", "current", "balance"):
         value = raw_account.get(key)
         if isinstance(value, (int, float)):
             return float(value)
+
     nested = raw_account.get("balance")
     if isinstance(nested, dict):
         for key in ("ledger", "available", "current"):
@@ -151,6 +180,34 @@ def _coerce_amount(value: Any) -> float:
     return 0.0
 
 
+def _is_liability_account(account_type: str | None) -> bool:
+    if not account_type:
+        return False
+    return account_type.strip().lower() in {
+        "credit",
+        "credit_card",
+        "card",
+        "charge",
+        "loan",
+    }
+
+
+def _extract_credit_limit(raw_account: dict[str, Any]) -> float | None:
+    for key in ("credit_limit", "limit"):
+        value = raw_account.get(key)
+        if isinstance(value, (int, float)):
+            return float(value)
+
+    nested = raw_account.get("balance")
+    if isinstance(nested, dict):
+        for key in ("limit", "credit_limit"):
+            value = nested.get(key)
+            if isinstance(value, (int, float)):
+                return float(value)
+
+    return None
+
+
 def _coerce_date(value: Any) -> date:
     if isinstance(value, str) and value:
         try:
@@ -160,7 +217,9 @@ def _coerce_date(value: Any) -> date:
     return datetime.now(timezone.utc).date()
 
 
-async def sync_teller_accounts_for_user(db: AsyncSession, user_id: str) -> dict[str, object]:
+async def sync_teller_accounts_for_user(
+    db: AsyncSession, user_id: str
+) -> dict[str, object]:
     query = await db.execute(
         select(Account).where(Account.user_id == user_id, Account.provider == "teller")
     )
@@ -207,6 +266,11 @@ async def sync_teller_accounts_for_user(db: AsyncSession, user_id: str) -> dict[
             external_id = str(remote.get("id", ""))
             if not external_id:
                 continue
+            account_type = str(remote.get("type") or "checking")
+            account_class = (
+                "liability" if _is_liability_account(account_type) else "asset"
+            )
+            credit_limit = _extract_credit_limit(remote)
 
             local = by_external_id.get(external_id)
             if local is None:
@@ -215,17 +279,21 @@ async def sync_teller_accounts_for_user(db: AsyncSession, user_id: str) -> dict[
                     provider="teller",
                     external_id=external_id,
                     name=str(remote.get("name") or "Connected Account"),
-                    type=str(remote.get("type") or "checking"),
+                    type=account_type,
                     balance_current=_extract_balance(remote),
                     currency="USD",
+                    account_class=account_class,
+                    credit_limit=credit_limit,
                     teller_access_token_enc=encrypt_teller_access_token(token),
                 )
                 db.add(local)
                 by_external_id[external_id] = local
             else:
                 local.name = str(remote.get("name") or local.name)
-                local.type = str(remote.get("type") or local.type or "checking")
+                local.type = account_type or local.type or "checking"
                 local.balance_current = _extract_balance(remote)
+                local.account_class = account_class
+                local.credit_limit = credit_limit
                 local.teller_access_token_enc = encrypt_teller_access_token(token)
 
             accounts_processed += 1
@@ -237,7 +305,9 @@ async def sync_teller_accounts_for_user(db: AsyncSession, user_id: str) -> dict[
                 continue
 
             try:
-                remote_transactions = await fetch_teller_transactions(token, str(local.external_id))
+                remote_transactions = await fetch_teller_transactions(
+                    token, str(local.external_id)
+                )
             except Exception as exc:
                 errors.append(f"{local.id} tx sync failed: {str(exc)}")
                 continue
@@ -248,10 +318,15 @@ async def sync_teller_accounts_for_user(db: AsyncSession, user_id: str) -> dict[
                     continue
 
                 details = remote_tx.get("details")
-                processing_status = details.get("processing_status") if isinstance(details, dict) else None
+                processing_status = (
+                    details.get("processing_status")
+                    if isinstance(details, dict)
+                    else None
+                )
                 merchant_name = (
                     details.get("counterparty", {}).get("name")
-                    if isinstance(details, dict) and isinstance(details.get("counterparty"), dict)
+                    if isinstance(details, dict)
+                    and isinstance(details.get("counterparty"), dict)
                     else None
                 )
 
@@ -272,6 +347,11 @@ async def sync_teller_accounts_for_user(db: AsyncSession, user_id: str) -> dict[
                     merchant_name=merchant_name,
                     category=None,
                     user_category=None,
+                    tx_type=(
+                        "income"
+                        if _coerce_amount(remote_tx.get("amount")) > 0
+                        else "expense"
+                    ),
                     date=_coerce_date(remote_tx.get("date")),
                     notes=None,
                     is_manual=False,

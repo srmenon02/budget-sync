@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import Literal, Optional
 from datetime import date as dt_date
+from typing import Literal, Optional
+
+from pydantic import BaseModel, Field
 
 
 class TransactionCreate(BaseModel):
@@ -14,6 +15,9 @@ class TransactionCreate(BaseModel):
     notes: Optional[str] = None
     is_manual: Optional[bool] = False
     loan_id: Optional[str] = None  # Link to loan for auto-balance updates
+    tx_type: Optional[Literal["income", "expense", "transfer"]] = None
+    is_paid_off: Optional[bool] = False  # For credit card transactions
+    paycheck_number: Optional[int] = None  # Paycheck index (1, 2, 3, etc.)
 
 
 class TransactionUpdate(BaseModel):
@@ -24,6 +28,9 @@ class TransactionUpdate(BaseModel):
     date: Optional[dt_date] = None
     notes: Optional[str] = None
     loan_id: Optional[str] = None
+    tx_type: Optional[Literal["income", "expense", "transfer"]] = None
+    is_paid_off: Optional[bool] = None
+    paycheck_number: Optional[int] = None
 
 
 class TransactionRead(TransactionCreate):
@@ -48,6 +55,7 @@ class TransactionBulkItem(BaseModel):
     date: dt_date = Field(default_factory=dt_date.today)
     notes: Optional[str] = None
     tx_type: Literal["income", "expense"] = "expense"
+    paycheck_number: Optional[int] = None
 
 
 class TransactionBulkCreate(BaseModel):

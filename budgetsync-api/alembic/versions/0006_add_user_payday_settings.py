@@ -6,6 +6,7 @@ Create Date: 2026-04-04
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "0006_add_user_payday_settings"
@@ -22,12 +23,19 @@ def upgrade() -> None:
     if "primary_payday_day" not in columns:
         op.add_column(
             "users",
-            sa.Column("primary_payday_day", sa.Integer(), nullable=False, server_default="1"),
+            sa.Column(
+                "primary_payday_day", sa.Integer(), nullable=False, server_default="1"
+            ),
         )
     if "secondary_payday_day" not in columns:
         op.add_column(
             "users",
-            sa.Column("secondary_payday_day", sa.Integer(), nullable=False, server_default="15"),
+            sa.Column(
+                "secondary_payday_day",
+                sa.Integer(),
+                nullable=False,
+                server_default="15",
+            ),
         )
 
 

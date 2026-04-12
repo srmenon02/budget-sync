@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { connectTellerAccount, createManualAccount } from '@/api/accounts'
-import { getTellerConnectConfig, seedDevData } from '@/api/bankSync'
+import { connectTellerAccount, createManualAccount, updateAccount } from '@/api/accounts'
+import { getTellerConnectConfig } from '@/api/bankSync'
+import type { FinancialAccount } from '@/components/index'
 import { Modal } from '@/components/ui'
 
 const ACCOUNT_TYPES = ['checking', 'savings', 'credit', 'investment', 'loan', 'other']
 
 interface Props {
   onClose: () => void
+  account?: FinancialAccount
 }
 
 type TellerConnectEnrollment = {
@@ -61,32 +63,48 @@ function extractAccessToken(enrollment: TellerConnectEnrollment): string | null 
   return enrollment.accessToken ?? enrollment.access_token ?? null
 }
 
-export function AddAccountModal({ onClose }: Props) {
-  const isDev = import.meta.env.DEV
+export function AddAccountModal({ onClose, account }: Props) {
   const queryClient = useQueryClient()
-  const [name, setName] = useState('')
-  const [type, setType] = useState('checking')
-  const [provider, setProvider] = useState('')
-  const [balance, setBalance] = useState('')
+  const [name, setName] = useState(account?.account_name ?? '')
+  const [type, setType] = useState(account?.account_type ?? 'checking')
+  const [provider, setProvider] = useState(account?.institution_name === 'Manual' ? '' : (account?.institution_name ?? ''))
+  const [balance, setBalance] = useState(account?.current_balance != null ? String(account.current_balance) : '')
+  const [creditLimit, setCreditLimit] = useState(account?.credit_limit != null ? String(account.credit_limit) : '')
+  const [statementDueDay, setStatementDueDay] = useState(account?.statement_due_day != null ? String(account.statement_due_day) : '')
+  const [minimumDue, setMinimumDue] = useState(account?.minimum_due != null ? String(account.minimum_due) : '')
+  const [apr, setApr] = useState(account?.apr != null ? String(account.apr) : '')
   const [error, setError] = useState<string | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
+  const isCreditType = type === 'credit'
+  const isEditing = Boolean(account)
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createManualAccount({
+    mutationFn: () => {
+      const payload = {
         name,
         type,
         provider: provider || undefined,
         balance_current: balance !== '' ? Number(balance) : undefined,
         currency: 'USD',
-      }),
+        account_class: isCreditType ? 'liability' as const : 'asset' as const,
+        credit_limit: isCreditType && creditLimit !== '' ? Number(creditLimit) : undefined,
+        statement_due_day: isCreditType && statementDueDay !== '' ? Number(statementDueDay) : undefined,
+        minimum_due: isCreditType && minimumDue !== '' ? Number(minimumDue) : undefined,
+        apr: isCreditType && apr !== '' ? Number(apr) : undefined,
+      }
+
+      return isEditing && account
+        ? updateAccount(account.id, payload)
+        : createManualAccount(payload)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
       onClose()
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { detail?: string } } }
-      setError(e?.response?.data?.detail ?? 'Failed to create account.')
+      setError(e?.response?.data?.detail ?? `Failed to ${isEditing ? 'update' : 'create'} account.`)
     },
   })
 
@@ -128,6 +146,7 @@ export function AddAccountModal({ onClose }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
       onClose()
     },
     onError: (err: unknown) => {
@@ -136,23 +155,8 @@ export function AddAccountModal({ onClose }: Props) {
     },
   })
 
-  const seedMutation = useMutation({
-    mutationFn: seedDevData,
-    onSuccess: () => {
-      setConnectError(null)
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
-      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['budgets'] })
-    },
-    onError: (err: unknown) => {
-      const e = err as { response?: { data?: { detail?: string } } }
-      setConnectError(e?.response?.data?.detail ?? 'Failed to seed demo data.')
-    },
-  })
-
   return (
-    <Modal title="Add Account" onClose={onClose}>
+    <Modal title={isEditing ? 'Edit Account' : 'Add Account'} onClose={onClose}>
       <form
         onSubmit={(e) => { e.preventDefault(); setError(null); mutation.mutate() }}
         className="flex flex-col gap-5"
@@ -199,28 +203,72 @@ export function AddAccountModal({ onClose }: Props) {
           />
         </label>
 
+        {isCreditType ? (
+          <>
+            <label className="flex flex-col gap-1.5">
+              <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Credit Limit (USD)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={creditLimit}
+                onChange={(e) => setCreditLimit(e.target.value)}
+                placeholder="5000.00"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Statement Due Day</span>
+              <input
+                type="number"
+                min="1"
+                max="31"
+                value={statementDueDay}
+                onChange={(e) => setStatementDueDay(e.target.value)}
+                placeholder="25"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">Minimum Due (USD)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={minimumDue}
+                onChange={(e) => setMinimumDue(e.target.value)}
+                placeholder="35.00"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="font-mono text-xs text-parchment-muted uppercase tracking-wider">APR (%)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={apr}
+                onChange={(e) => setApr(e.target.value)}
+                placeholder="24.99"
+              />
+            </label>
+          </>
+        ) : null}
+
         {error ? <p className="font-mono text-xs text-coral border border-coral/20 bg-coral/5 rounded-lg px-3 py-2">{error}</p> : null}
         {connectError ? <p className="font-mono text-xs text-coral border border-coral/20 bg-coral/5 rounded-lg px-3 py-2">{connectError}</p> : null}
 
         <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
-          {isDev ? (
+          {!isEditing ? (
             <button
               type="button"
-              onClick={() => { setConnectError(null); seedMutation.mutate() }}
-              disabled={seedMutation.isPending}
-              className="px-4 py-2.5 font-mono text-xs rounded-lg border border-jade/40 text-jade bg-jade/10 hover:bg-jade/20 transition-colors disabled:opacity-50"
+              onClick={() => { setConnectError(null); connectMutation.mutate() }}
+              disabled={connectMutation.isPending}
+              className="px-4 py-2.5 font-mono text-xs rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors disabled:opacity-50"
             >
-              {seedMutation.isPending ? 'Seeding…' : 'Seed Demo Data'}
+              {connectMutation.isPending ? 'Connecting…' : 'Connect Bank (Teller)'}
             </button>
           ) : null}
-          <button
-            type="button"
-            onClick={() => { setConnectError(null); connectMutation.mutate() }}
-            disabled={connectMutation.isPending}
-            className="px-4 py-2.5 font-mono text-xs rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors disabled:opacity-50"
-          >
-            {connectMutation.isPending ? 'Connecting…' : 'Connect Bank (Teller)'}
-          </button>
           <button
             type="button"
             onClick={onClose}
@@ -233,7 +281,7 @@ export function AddAccountModal({ onClose }: Props) {
             disabled={mutation.isPending}
             className="px-4 py-2.5 font-mono text-xs rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
           >
-            {mutation.isPending ? 'Adding…' : 'Add Account'}
+            {mutation.isPending ? (isEditing ? 'Saving…' : 'Adding…') : (isEditing ? 'Save Changes' : 'Add Account')}
           </button>
         </div>
       </form>

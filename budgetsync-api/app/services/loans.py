@@ -119,16 +119,22 @@ async def record_payment(
     return payment
 
 
-async def get_loan_payments(db: AsyncSession, loan_id: str, user_id: str) -> list[LoanPayment]:
+async def get_loan_payments(
+    db: AsyncSession, loan_id: str, user_id: str
+) -> list[LoanPayment]:
     """Get all payments for a loan"""
-    query = select(LoanPayment).where(
-        and_(LoanPayment.loan_id == loan_id, LoanPayment.user_id == user_id)
-    ).order_by(LoanPayment.payment_date.desc())
+    query = (
+        select(LoanPayment)
+        .where(and_(LoanPayment.loan_id == loan_id, LoanPayment.user_id == user_id))
+        .order_by(LoanPayment.payment_date.desc())
+    )
     result = await db.execute(query)
     return result.scalars().all()
 
 
-async def reduce_loan_balance(db: AsyncSession, loan_id: str, user_id: str, amount: float) -> Loan | None:
+async def reduce_loan_balance(
+    db: AsyncSession, loan_id: str, user_id: str, amount: float
+) -> Loan | None:
     """Reduce a loan's balance (called from transaction creation for loan payments)"""
     loan = await get_loan(db, user_id, loan_id)
     if not loan:

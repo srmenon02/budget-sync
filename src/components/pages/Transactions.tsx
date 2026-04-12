@@ -113,6 +113,7 @@ function parseCsvTextRows(rawText: string): string[][] {
 
 function TransactionRow({
   tx,
+  showPaidOffToggle,
   isEditing,
   editable,
   onStartEdit,
@@ -120,11 +121,13 @@ function TransactionRow({
   onChangeEdit,
   onSaveEdit,
   onDelete,
+  onTogglePaidOff,
   isSaving,
   isDeleting,
   editValidationError,
 }: {
   tx: Transaction
+  showPaidOffToggle: boolean
   isEditing: boolean
   editable: EditableTransaction | null
   onStartEdit: (tx: Transaction) => void
@@ -132,6 +135,7 @@ function TransactionRow({
   onChangeEdit: (next: EditableTransaction) => void
   onSaveEdit: (tx: Transaction) => void
   onDelete: (tx: Transaction) => void
+  onTogglePaidOff: (tx: Transaction) => void
   isSaving: boolean
   isDeleting: boolean
   editValidationError: string | null
@@ -201,19 +205,30 @@ function TransactionRow({
   return (
     <div className="flex items-center justify-between py-3.5 md:py-4 border-b border-ink-border/60 last:border-0 gap-4">
       <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="font-mono text-sm text-parchment truncate">
+        <span className={`font-mono text-sm text-parchment truncate ${showPaidOffToggle && tx.is_paid_off ? 'line-through opacity-60' : ''}`}>
           {tx.merchant_name ?? tx.description ?? 'Transaction'}
         </span>
         <div className="flex items-center gap-2 flex-wrap">
           {tx.category ? <span className="font-mono text-xs text-gold/70">{tx.category}</span> : null}
           <span className="font-mono text-xs text-parchment-dim">{tx.transaction_date}</span>
           {tx.is_manual ? <span className="font-mono text-xs text-parchment-dim/50 border border-ink-border px-1 rounded">manual</span> : null}
+          {tx.paycheck_number ? <span className="font-mono text-xs text-jade/70 border border-jade/30 px-1 rounded">paycheck {tx.paycheck_number}</span> : null}
         </div>
       </div>
       <div className="flex items-center gap-3 shrink-0">
         <span className={`font-mono text-sm font-medium ${isExpense ? 'text-coral' : 'text-jade'}`}>
           {isExpense ? '−' : '+'}{fmt(Math.abs(amount))}
         </span>
+        {showPaidOffToggle ? (
+          <button
+            type="button"
+            onClick={() => onTogglePaidOff(tx)}
+            className={`font-mono text-xs px-2 py-1 rounded border transition-colors ${tx.is_paid_off ? 'border-jade/40 text-jade bg-jade/10' : 'border-ink-border text-parchment-dim hover:text-parchment hover:bg-ink-raised'}`}
+            title={tx.is_paid_off ? 'Mark as unpaid' : 'Mark as paid off'}
+          >
+            {tx.is_paid_off ? '✓ Paid' : 'Unpaid'}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => onStartEdit(tx)}
@@ -259,6 +274,7 @@ export default function Transactions() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editModel, setEditModel] = useState<EditableTransaction | null>(null)
   const [editValidationError, setEditValidationError] = useState<string | null>(null)
+  const [paycheckNumber, setPaycheckNumber] = useState<'' | number>('')
   const queryClient = useQueryClient()
 
   const accounts = useAccounts()
@@ -273,10 +289,15 @@ export default function Transactions() {
     start_date: startDate || (mode === 'paycheck' ? paycheckStart : undefined),
     end_date: endDate || (mode === 'paycheck' ? paycheckEnd : undefined),
     sort,
+    paycheck_number: paycheckNumber ? Number(paycheckNumber) : undefined,
     sort_dir: sortDir,
   })
 
   const rows = data?.transactions ?? []
+  const accountsById = useMemo(
+    () => new Map((accounts.data ?? []).map((account) => [account.id, account])),
+    [accounts.data],
+  )
 
   const resetMutation = useMutation({
     mutationFn: () =>
@@ -290,6 +311,8 @@ export default function Transactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
     },
   })
 
@@ -305,6 +328,8 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
       queryClient.invalidateQueries({ queryKey: ['loans'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
     },
     onError: () => {
       setBulkError('Failed to import income and expenses.')
@@ -312,13 +337,15 @@ export default function Transactions() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: (params: { transactionId: string; payload: { amount: number; description?: string; category?: string; date?: string } }) =>
+    mutationFn: (params: { transactionId: string; payload: { amount?: number; description?: string; category?: string; date?: string; is_paid_off?: boolean } }) =>
       updateTransaction(params.transactionId, params.payload),
     onSuccess: () => {
       setEditingId(null)
       setEditModel(null)
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
     },
   })
 
@@ -328,6 +355,8 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
       queryClient.invalidateQueries({ queryKey: ['loans'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
     },
   })
 
@@ -433,6 +462,14 @@ export default function Transactions() {
             <option value="">All types</option>
             <option value="income">Income</option>
             <option value="expense">Expense</option>
+          </select>
+          <select value={paycheckNumber} onChange={(e) => setPaycheckNumber(e.target.value === '' ? '' : Number(e.target.value))}>
+            <option value="">All paychecks</option>
+            <option value="1">Paycheck 1</option>
+            <option value="2">Paycheck 2</option>
+            <option value="3">Paycheck 3</option>
+            <option value="4">Paycheck 4</option>
+            <option value="5">Paycheck 5</option>
           </select>
           <div className="xl:col-span-2 grid grid-cols-2 gap-2">
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} title="From date" />
@@ -542,6 +579,9 @@ export default function Transactions() {
                 <TransactionRow
                   key={tx.id}
                   tx={tx}
+                  showPaidOffToggle={
+                    (accountsById.get(tx.account_id)?.account_class === 'liability') && (tx.amount ?? 0) < 0
+                  }
                   isEditing={editingId === tx.id}
                   editable={editModel}
                   isSaving={updateMutation.isPending && editingId === tx.id}
@@ -563,6 +603,12 @@ export default function Transactions() {
                     setEditValidationError(null)
                   }}
                   onChangeEdit={setEditModel}
+                  onTogglePaidOff={(row) => {
+                    updateMutation.mutate({
+                      transactionId: row.id,
+                      payload: { is_paid_off: !row.is_paid_off },
+                    })
+                  }}
                   onSaveEdit={(row) => {
                     if (!editModel) return
                     const parsedAmount = Number(editModel.amount)

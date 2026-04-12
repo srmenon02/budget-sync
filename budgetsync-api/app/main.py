@@ -1,10 +1,10 @@
 import os
 from pathlib import Path
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # Load .env file from the budgetsync-api directory
 env_path = Path(__file__).parent.parent / ".env"
@@ -19,8 +19,8 @@ from .routers import (
     bank_sync_router,
     budgets_router,
     dev_router,
-    transactions_router,
     loans_router,
+    transactions_router,
 )
 from .services.bank_sync import run_periodic_sync
 

@@ -2,7 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import CurrentUser, get_current_user, get_db
-from ..schemas.loan import LoanCreate, LoanPaymentCreate, LoanPaymentRead, LoanRead, LoanUpdate
+from ..schemas.loan import (
+    LoanCreate,
+    LoanPaymentCreate,
+    LoanPaymentRead,
+    LoanRead,
+    LoanUpdate,
+)
 from ..services.loans import (
     create_loan,
     delete_loan,
@@ -125,5 +131,7 @@ async def api_get_payments(
     if not loan:
         raise HTTPException(status_code=404, detail="Loan not found")
 
-    payments = await get_loan_payments(db, loan_id=loan_id, user_id=current_user["user_id"])
+    payments = await get_loan_payments(
+        db, loan_id=loan_id, user_id=current_user["user_id"]
+    )
     return payments

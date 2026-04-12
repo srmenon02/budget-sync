@@ -4,16 +4,17 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.user import User
+from app.exceptions import (DuplicatePartnershipError, ForbiddenError,
+                            PartnershipNotFoundError)
 from app.models.partnership import Partnership
+from app.models.user import User
 from app.schemas.partnership import PartnershipInvite, PartnershipResponse
 from app.services.email import send_partner_invite
-from app.exceptions import PartnershipNotFoundError, ForbiddenError, DuplicatePartnershipError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/partnerships", tags=["partnerships"])
@@ -100,11 +101,16 @@ async def remove_partnership(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    result = await db.execute(select(Partnership).where(Partnership.id == partnership_id))
+    result = await db.execute(
+        select(Partnership).where(Partnership.id == partnership_id)
+    )
     partnership = result.scalar_one_or_none()
     if not partnership:
         raise PartnershipNotFoundError()
-    if partnership.requester_id != current_user.id and partnership.partner_id != current_user.id:
+    if (
+        partnership.requester_id != current_user.id
+        and partnership.partner_id != current_user.id
+    ):
         raise ForbiddenError()
     await db.delete(partnership)
     await db.commit()

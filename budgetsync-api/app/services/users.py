@@ -49,6 +49,7 @@ async def get_user_settings(
         display_name=user.display_name,
         primary_payday_day=user.primary_payday_day,
         secondary_payday_day=user.secondary_payday_day,
+        paycheck_frequency=user.paycheck_frequency,
     )
 
 
@@ -59,9 +60,14 @@ async def update_user_settings(
     email: str | None = None,
 ) -> UserSettingsRead:
     user = await ensure_local_user(db, user_id=user_id, email=email)
-    user.display_name = payload.display_name
-    user.primary_payday_day = payload.primary_payday_day
-    user.secondary_payday_day = payload.secondary_payday_day
+    if payload.display_name is not None:
+        user.display_name = payload.display_name
+    if payload.primary_payday_day is not None:
+        user.primary_payday_day = payload.primary_payday_day
+    if payload.secondary_payday_day is not None:
+        user.secondary_payday_day = payload.secondary_payday_day
+    if payload.paycheck_frequency is not None:
+        user.paycheck_frequency = payload.paycheck_frequency
     await db.commit()
     await db.refresh(user)
     return UserSettingsRead(
@@ -70,4 +76,5 @@ async def update_user_settings(
         display_name=user.display_name,
         primary_payday_day=user.primary_payday_day,
         secondary_payday_day=user.secondary_payday_day,
+        paycheck_frequency=user.paycheck_frequency,
     )

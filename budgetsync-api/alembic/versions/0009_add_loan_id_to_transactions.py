@@ -6,6 +6,7 @@ Create Date: 2026-04-05
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "0009_add_loan_id_to_transactions"

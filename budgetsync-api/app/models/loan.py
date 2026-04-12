@@ -24,7 +24,9 @@ class LoanPayment(Base):
     __tablename__ = "loan_payments"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    loan_id = Column(String(36), ForeignKey("loans.id", ondelete="CASCADE"), nullable=False)
+    loan_id = Column(
+        String(36), ForeignKey("loans.id", ondelete="CASCADE"), nullable=False
+    )
     user_id = Column(String(36), nullable=False)
     amount = Column(Numeric(12, 2), nullable=False)
     payment_date = Column(String(10), nullable=False)  # YYYY-MM-DD

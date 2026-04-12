@@ -5,7 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import CurrentUser, get_current_user, get_db
-from ..schemas.transaction import TransactionBulkCreate, TransactionCreate, TransactionListResponse, TransactionRead, TransactionUpdate
+from ..schemas.transaction import (
+    TransactionBulkCreate,
+    TransactionCreate,
+    TransactionListResponse,
+    TransactionRead,
+    TransactionUpdate,
+)
 from ..services.transactions import (
     create_transaction,
     create_transactions_bulk,
@@ -45,7 +51,9 @@ async def api_create_transactions_bulk(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     try:
-        rows = await create_transactions_bulk(db, payload, user_id=current_user["user_id"])
+        rows = await create_transactions_bulk(
+            db, payload, user_id=current_user["user_id"]
+        )
         return [TransactionRead.model_validate(tx) for tx in rows]
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
@@ -65,10 +73,14 @@ async def api_list_transactions(
     end_date: date | None = Query(default=None),
     category: str | None = Query(default=None),
     account_id: str | None = Query(default=None),
-    tx_type: Literal["income", "expense", "transfer"] | None = Query(default=None, alias="type"),
+    tx_type: Literal["income", "expense", "transfer"] | None = Query(
+        default=None, alias="type"
+    ),
     search: str | None = Query(default=None),
     sort: Literal["date", "amount", "category"] = Query(default="date"),
     sort_dir: Literal["asc", "desc"] = Query(default="desc"),
+    paycheck_number: int | None = Query(default=None),
+    paid_off_only: bool = Query(default=False),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
@@ -86,6 +98,8 @@ async def api_list_transactions(
         search=search,
         sort=sort,
         sort_dir=sort_dir,
+        paycheck_number=paycheck_number,
+        paid_off_only=paid_off_only,
     )
     return {
         "transactions": [TransactionRead.model_validate(tx) for tx in transactions],
@@ -102,7 +116,9 @@ async def api_reset_transactions(
     end_date: date | None = Query(default=None),
     category: str | None = Query(default=None),
     account_id: str | None = Query(default=None),
-    tx_type: Literal["income", "expense", "transfer"] | None = Query(default=None, alias="type"),
+    tx_type: Literal["income", "expense", "transfer"] | None = Query(
+        default=None, alias="type"
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):

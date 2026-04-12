@@ -12,7 +12,11 @@ from ..models.transaction import Transaction
 
 def _month_range(month: str) -> tuple[date, date]:
     start = date.fromisoformat(f"{month}-01")
-    end = date(start.year + 1, 1, 1) if start.month == 12 else date(start.year, start.month + 1, 1)
+    end = (
+        date(start.year + 1, 1, 1)
+        if start.month == 12
+        else date(start.year, start.month + 1, 1)
+    )
     return start, end
 
 
@@ -45,7 +49,11 @@ def resolve_budget_window(
     payday_days = sorted({primary_payday_day, secondary_payday_day})
 
     current_paydays = [
-        date(reference.year, reference.month, _clamp_day(reference.year, reference.month, payday_day))
+        date(
+            reference.year,
+            reference.month,
+            _clamp_day(reference.year, reference.month, payday_day),
+        )
         for payday_day in payday_days
     ]
 
@@ -53,7 +61,11 @@ def resolve_budget_window(
     next_year, next_month = _add_month(reference.year, reference.month, 1)
 
     previous_paydays = [
-        date(previous_year, previous_month, _clamp_day(previous_year, previous_month, payday_day))
+        date(
+            previous_year,
+            previous_month,
+            _clamp_day(previous_year, previous_month, payday_day),
+        )
         for payday_day in payday_days
     ]
     next_paydays = [
@@ -194,14 +206,18 @@ async def get_budgets_with_actuals(
 
     budgets_result = await db.execute(
         select(Budget)
-        .where(Budget.user_id == user_id, Budget.month == month, Budget.period == period)
+        .where(
+            Budget.user_id == user_id, Budget.month == month, Budget.period == period
+        )
         .order_by(Budget.category.asc())
     )
     budgets = budgets_result.scalars().all()
 
     actuals_result = await db.execute(
         select(
-            func.coalesce(Transaction.user_category, Transaction.category).label("category"),
+            func.coalesce(Transaction.user_category, Transaction.category).label(
+                "category"
+            ),
             func.sum(func.abs(Transaction.amount)).label("spent"),
         )
         .select_from(Transaction)
@@ -209,6 +225,7 @@ async def get_budgets_with_actuals(
         .where(
             Account.user_id == user_id,
             Transaction.amount < 0,
+            (Transaction.tx_type.is_(None)) | (Transaction.tx_type != "transfer"),
             Transaction.date >= actuals_start,
             Transaction.date < actuals_end,
         )

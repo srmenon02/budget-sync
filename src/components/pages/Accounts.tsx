@@ -12,73 +12,88 @@ function fmt(n: number) {
 
 function AccountRow({ account }: { account: FinancialAccount }) {
   const balance = account.current_balance
-  const isCredit = account.account_type === 'credit'
+  const isCredit = account.account_class === 'liability' || account.account_type === 'credit'
   const [confirming, setConfirming] = useState(false)
+  const [editing, setEditing] = useState(false)
   const queryClient = useQueryClient()
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteAccount(account.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
     },
   })
 
   return (
-    <div className="flex items-center justify-between py-4 border-b border-ink-border/60 last:border-0 group">
-      <div className="flex flex-col gap-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm text-parchment truncate">
-            {account.account_name}
-          </span>
-          <Badge variant={account.sync_status === 'ok' || account.sync_status === 'manual' ? 'success' : 'default'}>
-            {account.account_type}
-          </Badge>
-        </div>
-        <span className="font-mono text-xs text-parchment-dim">
-          {account.institution_name || 'Manual'}
-          {account.last_four ? ` ····${account.last_four}` : ''}
-        </span>
-      </div>
-      <div className="flex items-center gap-4 shrink-0 ml-4">
-        <span className="font-mono text-xs text-parchment-dim">
-          {account.sync_status}
-        </span>
-        <span
-          className={`font-display text-xl ${
-            balance != null && ((isCredit && balance > 0) || (!isCredit && balance < 0))
-              ? 'text-coral'
-              : 'text-parchment'
-          }`}
-          style={{ fontVariationSettings: '"opsz" 24, "wght" 400' }}
-        >
-          {balance != null && !isNaN(balance) ? fmt(balance) : '—'}
-        </span>
-        {confirming ? (
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-              className="font-mono text-xs px-2.5 py-1.5 rounded border border-coral/50 text-coral hover:bg-coral/10 transition-colors disabled:opacity-50"
-            >
-              {deleteMutation.isPending ? '…' : 'Confirm'}
-            </button>
-            <button
-              onClick={() => setConfirming(false)}
-              className="font-mono text-xs px-2.5 py-1.5 rounded border border-ink-border text-parchment-dim hover:text-parchment transition-colors"
-            >
-              Cancel
-            </button>
+    <>
+      {editing ? <AddAccountModal account={account} onClose={() => setEditing(false)} /> : null}
+      <div className="flex items-center justify-between py-4 border-b border-ink-border/60 last:border-0 group">
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm text-parchment truncate">
+              {account.account_name}
+            </span>
+            <Badge variant={account.sync_status === 'ok' || account.sync_status === 'manual' ? 'success' : 'default'}>
+              {account.account_type}
+            </Badge>
           </div>
-        ) : (
-          <button
-            onClick={() => setConfirming(true)}
-            className="opacity-0 group-hover:opacity-100 font-mono text-xs px-2.5 py-1.5 rounded border border-ink-border text-parchment-dim hover:text-coral hover:border-coral/50 transition-all"
+          <span className="font-mono text-xs text-parchment-dim">
+            {account.institution_name || 'Manual'}
+            {account.last_four ? ` ····${account.last_four}` : ''}
+            {isCredit && account.credit_limit != null ? ` · limit ${fmt(account.credit_limit)}` : ''}
+            {isCredit && account.utilization_percent != null ? ` · ${account.utilization_percent.toFixed(1)}% util` : ''}
+          </span>
+        </div>
+        <div className="flex items-center gap-4 shrink-0 ml-4">
+          <span className="font-mono text-xs text-parchment-dim">
+            {account.sync_status}
+          </span>
+          <span
+            className={`font-display text-xl ${
+              balance != null && ((isCredit && balance > 0) || (!isCredit && balance < 0))
+                ? 'text-coral'
+                : 'text-parchment'
+            }`}
+            style={{ fontVariationSettings: '"opsz" 24, "wght" 400' }}
           >
-            Delete
-          </button>
-        )}
+            {balance != null && !isNaN(balance) ? fmt(balance) : '—'}
+          </span>
+          {confirming ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+                className="font-mono text-xs px-2.5 py-1.5 rounded border border-coral/50 text-coral hover:bg-coral/10 transition-colors disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? '…' : 'Confirm'}
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="font-mono text-xs px-2.5 py-1.5 rounded border border-ink-border text-parchment-dim hover:text-parchment transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition-all">
+              <button
+                onClick={() => setEditing(true)}
+                className="font-mono text-xs px-2.5 py-1.5 rounded border border-gold/40 text-gold hover:bg-gold/10 transition-colors"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => setConfirming(true)}
+                className="font-mono text-xs px-2.5 py-1.5 rounded border border-ink-border text-parchment-dim hover:text-coral hover:border-coral/50 transition-all"
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -87,7 +102,13 @@ export default function Accounts() {
   const { data, isLoading, isError } = useAccounts()
   const [showAdd, setShowAdd] = useState(false)
 
-  const totalBalance = (data ?? []).reduce((s, a) => s + (a.current_balance ?? 0), 0)
+  const totalAssets = (data ?? [])
+    .filter((a) => a.account_class === 'asset')
+    .reduce((sum, account) => sum + (account.current_balance ?? 0), 0)
+  const totalLiabilities = (data ?? [])
+    .filter((a) => a.account_class === 'liability')
+    .reduce((sum, account) => sum + Math.abs(account.current_balance ?? 0), 0)
+  const netWorth = totalAssets - totalLiabilities
 
   return (
     <div className="app-page">
@@ -109,7 +130,7 @@ export default function Accounts() {
         </button>
       </div>
 
-      {showAdd && <AddAccountModal onClose={() => setShowAdd(false)} />}
+      {showAdd ? <AddAccountModal onClose={() => setShowAdd(false)} /> : null}
 
       {isLoading ? (
         <Spinner />
@@ -122,10 +143,9 @@ export default function Accounts() {
           {/* Summary strip */}
           <div className="animate-fade-up delay-1 font-mono text-xs text-parchment-dim border border-ink-border rounded-lg px-4 py-3.5 bg-ink-card/50 flex items-center justify-between gap-4">
             <span>{data!.length} account{data!.length !== 1 ? 's' : ''}</span>
-            <span>
-              Total{' '}
-              <span className="text-gold font-medium">{fmt(totalBalance)}</span>
-            </span>
+            <span>Assets <span className="text-jade font-medium">{fmt(totalAssets)}</span></span>
+            <span>Liabilities <span className="text-coral font-medium">{fmt(totalLiabilities)}</span></span>
+            <span>Net Worth <span className="text-gold font-medium">{fmt(netWorth)}</span></span>
           </div>
 
           <Card className="animate-fade-up delay-2 p-0 overflow-hidden">

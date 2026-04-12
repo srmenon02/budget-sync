@@ -1,4 +1,3 @@
-import os
 from collections.abc import AsyncGenerator, Callable, Generator
 from pathlib import Path
 
@@ -8,12 +7,11 @@ from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+# Import models so SQLAlchemy metadata includes all tables.
+import app.models as models  # noqa: F401
 from app.database import Base
 from app.dependencies import get_db
 from app.main import app
-
-# Import models so SQLAlchemy metadata includes all tables.
-import app.models as models  # noqa: F401
 
 TEST_DB_PATH = Path("test_ci.db")
 TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
@@ -60,7 +58,9 @@ def override_db_dependency() -> Generator[None, None, None]:
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
+    async with AsyncClient(
+        transport=transport, base_url="http://testserver"
+    ) as async_client:
         yield async_client
 
 

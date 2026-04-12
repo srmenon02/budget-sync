@@ -7,6 +7,7 @@ const Accounts = lazy(() => import('./components/pages/Accounts'))
 const Transactions = lazy(() => import('./components/pages/Transactions'))
 const Budget = lazy(() => import('./components/pages/Budget'))
 const Loans = lazy(() => import('./components/pages/Loans'))
+const Settings = lazy(() => import('./components/pages/Settings'))
 const Login = lazy(() => import('./components/pages/Login'))
 const Register = lazy(() => import('./components/pages/Register'))
 
@@ -16,6 +17,7 @@ const NAV = [
   { label: 'Income and Expenses', path: '/transactions' },
   { label: 'Budget', path: '/budget' },
   { label: 'Loans', path: '/loans' },
+  { label: 'Settings', path: '/settings' },
 ]
 
 function getPage(path: string) {
@@ -25,6 +27,7 @@ function getPage(path: string) {
   if (path.startsWith('/transactions')) return <Transactions />
   if (path.startsWith('/budget')) return <Budget />
   if (path.startsWith('/loans')) return <Loans />
+  if (path.startsWith('/settings')) return <Settings />
   return <Dashboard />
 }
 

@@ -8,17 +8,23 @@ class BudgetSyncException(HTTPException):
 
 class AccountNotFoundError(BudgetSyncException):
     def __init__(self):
-        super().__init__(detail="Account not found", status_code=status.HTTP_404_NOT_FOUND)
+        super().__init__(
+            detail="Account not found", status_code=status.HTTP_404_NOT_FOUND
+        )
 
 
 class TransactionNotFoundError(BudgetSyncException):
     def __init__(self):
-        super().__init__(detail="Transaction not found", status_code=status.HTTP_404_NOT_FOUND)
+        super().__init__(
+            detail="Transaction not found", status_code=status.HTTP_404_NOT_FOUND
+        )
 
 
 class UnauthorizedError(BudgetSyncException):
     def __init__(self):
-        super().__init__(detail="Unauthorized", status_code=status.HTTP_401_UNAUTHORIZED)
+        super().__init__(
+            detail="Unauthorized", status_code=status.HTTP_401_UNAUTHORIZED
+        )
 
 
 class ForbiddenError(BudgetSyncException):
@@ -28,12 +34,16 @@ class ForbiddenError(BudgetSyncException):
 
 class PartnershipNotFoundError(BudgetSyncException):
     def __init__(self):
-        super().__init__(detail="Partnership not found", status_code=status.HTTP_404_NOT_FOUND)
+        super().__init__(
+            detail="Partnership not found", status_code=status.HTTP_404_NOT_FOUND
+        )
 
 
 class DuplicatePartnershipError(BudgetSyncException):
     def __init__(self):
-        super().__init__(detail="Partnership already exists", status_code=status.HTTP_409_CONFLICT)
+        super().__init__(
+            detail="Partnership already exists", status_code=status.HTTP_409_CONFLICT
+        )
 
 
 class BankSyncError(BudgetSyncException):
@@ -48,4 +58,6 @@ class GoalNotFoundError(BudgetSyncException):
 
 class BudgetNotFoundError(BudgetSyncException):
     def __init__(self):
-        super().__init__(detail="Budget not found", status_code=status.HTTP_404_NOT_FOUND)
+        super().__init__(
+            detail="Budget not found", status_code=status.HTTP_404_NOT_FOUND
+        )

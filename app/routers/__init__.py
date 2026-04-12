@@ -1,3 +1,3 @@
-from app.routers import auth, accounts, transactions, budgets, goals, partnerships
+from . import accounts, auth, budgets, goals, partnerships, transactions
 
 __all__ = ["auth", "accounts", "transactions", "budgets", "goals", "partnerships"]

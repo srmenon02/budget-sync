@@ -12,6 +12,8 @@ type TransactionApiModel = {
   date: string
   transaction_date?: string
   is_manual?: boolean
+  is_paid_off?: boolean
+  paycheck_number?: number | null
   created_at?: string
 }
 
@@ -34,6 +36,8 @@ export type TransactionQueryParams = {
   search?: string
   sort?: 'date' | 'amount' | 'category'
   sort_dir?: 'asc' | 'desc'
+  paycheck_number?: number
+  paid_off_only?: boolean
 }
 
 export type TransactionListResult = {
@@ -55,6 +59,8 @@ function mapTransaction(model: TransactionApiModel): Transaction {
     transaction_date: model.transaction_date ?? model.date,
     is_manual: Boolean(model.is_manual),
     created_at: model.created_at ?? new Date().toISOString(),
+    is_paid_off: model.is_paid_off ?? false,
+    paycheck_number: model.paycheck_number ?? null,
   }
 }
 
@@ -72,6 +78,8 @@ export const fetchTransactions = async (params: TransactionQueryParams = {}): Pr
       search: params.search,
       sort: params.sort,
       sort_dir: params.sort_dir,
+      paycheck_number: params.paycheck_number,
+      paid_off_only: params.paid_off_only,
     },
   })
 
@@ -93,6 +101,8 @@ export const createTransaction = async (payload: {
   date: string
   notes?: string
   is_manual?: boolean
+  is_paid_off?: boolean
+  paycheck_number?: number | null
 }): Promise<Transaction> => {
   const { data } = await client.post<Transaction>('/transactions/', payload)
   return data
@@ -108,6 +118,8 @@ export const updateTransaction = async (
     date?: string
     notes?: string
     loan_id?: string | null
+    is_paid_off?: boolean
+    paycheck_number?: number | null
   },
 ): Promise<Transaction> => {
   const { data } = await client.patch<Transaction>(`/transactions/${transactionId}`, payload)
@@ -139,6 +151,7 @@ export const bulkImportTransactions = async (payload: {
     date?: string
     notes?: string
     tx_type?: 'income' | 'expense'
+    paycheck_number?: number | null
   }>
 }): Promise<Transaction[]> => {
   const { data } = await client.post<Transaction[]>('/transactions/bulk', payload)

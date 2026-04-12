@@ -6,7 +6,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import auth, accounts, transactions, budgets, goals, partnerships
+from app.routers import (accounts, auth, budgets, goals, partnerships,
+                         transactions)
 from app.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)

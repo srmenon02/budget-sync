@@ -140,7 +140,9 @@ async def test_owner_can_update_and_delete_transaction(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_user_cannot_update_or_delete_other_users_transaction(client, auth_headers):
+async def test_user_cannot_update_or_delete_other_users_transaction(
+    client, auth_headers
+):
     owner_headers = auth_headers("owner-user")
     intruder_headers = auth_headers("intruder-user")
 
@@ -178,5 +180,7 @@ async def test_user_cannot_update_or_delete_other_users_transaction(client, auth
     )
     assert patch_response.status_code == 404
 
-    delete_response = await client.delete(f"/transactions/{tx_id}", headers=intruder_headers)
+    delete_response = await client.delete(
+        f"/transactions/{tx_id}", headers=intruder_headers
+    )
     assert delete_response.status_code == 404

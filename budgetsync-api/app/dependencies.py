@@ -33,7 +33,9 @@ async def get_current_user(
     """
     env = os.getenv("ENVIRONMENT", "development").lower()
     # Never allow auth bypass in production. In non-production, bypass is opt-in.
-    dev_bypass = env != "production" and os.getenv("DEV_AUTH_BYPASS", "false").lower() == "true"
+    dev_bypass = (
+        env != "production" and os.getenv("DEV_AUTH_BYPASS", "false").lower() == "true"
+    )
 
     if credentials is None:
         if dev_bypass:

@@ -2,7 +2,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import CurrentUser, get_current_user, get_db
-from ..schemas.auth import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, RegisterRequest, RegisterResponse
+from ..schemas.auth import (
+    AuthResponse,
+    LoginRequest,
+    RefreshRequest,
+    RefreshResponse,
+    RegisterRequest,
+    RegisterResponse,
+)
 from ..schemas.user import UserSettingsRead, UserSettingsUpdate
 from ..services import auth as auth_service
 from ..services.users import get_user_settings, update_user_settings

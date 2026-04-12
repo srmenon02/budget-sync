@@ -12,8 +12,14 @@ export interface FinancialAccount {
   institution_name: string
   account_name: string
   account_type: string
+  account_class: 'asset' | 'liability'
   last_four: string | null
   current_balance: number | null
+  credit_limit: number | null
+  statement_due_day: number | null
+  minimum_due: number | null
+  apr: number | null
+  utilization_percent: number | null
   is_manual: boolean
   is_shared_with_partner: boolean
   sync_status: 'pending' | 'ok' | 'error' | 'manual'
@@ -32,6 +38,8 @@ export interface Transaction {
   transaction_date: string
   is_manual: boolean
   created_at: string
+  is_paid_off?: boolean
+  paycheck_number?: number | null
 }
 
 export interface Budget {

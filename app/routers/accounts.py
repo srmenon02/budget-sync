@@ -1,17 +1,19 @@
 import logging
 import uuid
+
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.user import User
-from app.models.account import FinancialAccount
-from app.schemas.account import AccountCreate, AccountResponse, AccountUpdate, TellerEnrollment
-from app.services.bank_sync.sync import sync_account
-from app.utils.encryption import encrypt_token
 from app.exceptions import AccountNotFoundError, ForbiddenError
+from app.models.account import FinancialAccount
+from app.models.user import User
+from app.schemas.account import (AccountCreate, AccountResponse, AccountUpdate,
+                                 TellerEnrollment)
+from app.services.sync import sync_account
+from app.encryption import encrypt_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -87,7 +89,9 @@ async def update_account(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> FinancialAccount:
-    result = await db.execute(select(FinancialAccount).where(FinancialAccount.id == account_id))
+    result = await db.execute(
+        select(FinancialAccount).where(FinancialAccount.id == account_id)
+    )
     account = result.scalar_one_or_none()
     if not account:
         raise AccountNotFoundError()
@@ -110,7 +114,9 @@ async def delete_account(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    result = await db.execute(select(FinancialAccount).where(FinancialAccount.id == account_id))
+    result = await db.execute(
+        select(FinancialAccount).where(FinancialAccount.id == account_id)
+    )
     account = result.scalar_one_or_none()
     if not account:
         raise AccountNotFoundError()
@@ -126,7 +132,9 @@ async def trigger_sync(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> FinancialAccount:
-    result = await db.execute(select(FinancialAccount).where(FinancialAccount.id == account_id))
+    result = await db.execute(
+        select(FinancialAccount).where(FinancialAccount.id == account_id)
+    )
     account = result.scalar_one_or_none()
     if not account:
         raise AccountNotFoundError()

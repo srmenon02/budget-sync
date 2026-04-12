@@ -1,46 +1,59 @@
 import uuid
 from datetime import datetime
+
 from pydantic import BaseModel, field_validator
 
 
-class BudgetBase(BaseModel):
-    category: str
-    amount: float
-    month: int
-    year: int
+class BudgetCreate(BaseModel):
+    name: str
+    total_amount: float
 
-    @field_validator("month")
-    @classmethod
-    def validate_month(cls, v: int) -> int:
-        if not 1 <= v <= 12:
-            raise ValueError("month must be between 1 and 12")
-        return v
-
-    @field_validator("amount")
+    @field_validator("total_amount")
     @classmethod
     def validate_amount(cls, v: float) -> float:
         if v <= 0:
-            raise ValueError("amount must be positive")
+            raise ValueError("total_amount must be positive")
         return v
 
 
-class BudgetCreate(BudgetBase):
-    pass
-
-
 class BudgetUpdate(BaseModel):
-    amount: float | None = None
+    name: str | None = None
+    total_amount: float | None = None
 
 
-class BudgetResponse(BudgetBase):
+class BudgetResponse(BaseModel):
     id: uuid.UUID
     owner_id: uuid.UUID
+    name: str
+    total_amount: float
+    is_active: bool
     created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 
 
-class BudgetWithActual(BudgetResponse):
-    actual_spent: float
-    remaining: float
-    percent_used: float
+class BudgetWithSpent(BudgetResponse):
+    spent_amount: float
+
+    @property
+    def remaining(self) -> float:
+        return self.total_amount - self.spent_amount
+
+    @property
+    def percent_used(self) -> float:
+        if self.total_amount <= 0:
+            return 0.0
+        return (self.spent_amount / self.total_amount) * 100
+
+
+class BudgetArchiveResponse(BaseModel):
+    id: uuid.UUID
+    owner_id: uuid.UUID
+    name: str
+    total_amount: float
+    spent_amount: float
+    archived_at: datetime
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

@@ -22,7 +22,9 @@ async def seed_dev_data(
 ) -> dict[str, object]:
     environment = os.getenv("ENVIRONMENT", "development").lower()
     if environment in {"production", "prod"}:
-        raise HTTPException(status_code=403, detail="Seed endpoint disabled in production")
+        raise HTTPException(
+            status_code=403, detail="Seed endpoint disabled in production"
+        )
 
     user_id = current_user["user_id"]
     existing_accounts = await list_accounts(db, user_id=user_id, limit=1)

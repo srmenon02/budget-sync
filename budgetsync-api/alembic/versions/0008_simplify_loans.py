@@ -6,6 +6,7 @@ Create Date: 2026-04-05
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "0008_simplify_loans"
@@ -30,7 +31,9 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("principal_amount", sa.Numeric(12, 2), nullable=False),
         sa.Column("current_balance", sa.Numeric(12, 2), nullable=False),
-        sa.Column("start_date", sa.String(length=10), nullable=True),  # YYYY-MM-DD, optional
+        sa.Column(
+            "start_date", sa.String(length=10), nullable=True
+        ),  # YYYY-MM-DD, optional
         sa.Column(
             "created_at",
             sa.String(length=50),
@@ -54,7 +57,12 @@ def upgrade() -> None:
             sa.Column("user_id", sa.String(length=36), nullable=False),
             sa.Column("amount", sa.Numeric(12, 2), nullable=False),
             sa.Column("payment_date", sa.String(length=10), nullable=False),
-            sa.Column("created_at", sa.String(length=50), nullable=True, server_default=sa.text("CURRENT_TIMESTAMP")),
+            sa.Column(
+                "created_at",
+                sa.String(length=50),
+                nullable=True,
+                server_default=sa.text("CURRENT_TIMESTAMP"),
+            ),
             sa.ForeignKeyConstraint(["loan_id"], ["loans.id"], ondelete="CASCADE"),
         )
 
@@ -82,6 +90,16 @@ def downgrade() -> None:
         sa.Column("monthly_payment", sa.Numeric(12, 2), nullable=True),
         sa.Column("start_date", sa.String(length=10), nullable=False),
         sa.Column("target_payoff_date", sa.String(length=10), nullable=True),
-        sa.Column("created_at", sa.String(length=50), nullable=True, server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.Column("updated_at", sa.String(length=50), nullable=True, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at",
+            sa.String(length=50),
+            nullable=True,
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.String(length=50),
+            nullable=True,
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+        ),
     )

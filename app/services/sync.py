@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.account import FinancialAccount
 from app.models.transaction import Transaction
 from app.services.bank_sync.teller import TellerClient
-from app.utils.encryption import decrypt_token
+from app.encryption import decrypt_token
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,9 @@ async def sync_account(db: AsyncSession, account: FinancialAccount) -> int:
         else date.today() - timedelta(days=180)
     )
 
-    raw_transactions = await client.get_transactions(account.teller_account_id, since=since)
+    raw_transactions = await client.get_transactions(
+        account.teller_account_id, since=since
+    )
     balance_data = await client.get_account_balance(account.teller_account_id)
 
     existing_ids_result = await db.execute(
@@ -61,9 +63,13 @@ async def sync_account(db: AsyncSession, account: FinancialAccount) -> int:
             account_id=account.id,
             teller_transaction_id=teller_id,
             amount=amount,
-            merchant_name=raw.get("merchant", {}).get("name") if isinstance(raw.get("merchant"), dict) else None,
+            merchant_name=raw.get("merchant", {}).get("name")
+            if isinstance(raw.get("merchant"), dict)
+            else None,
             description=raw.get("description"),
-            category=raw.get("details", {}).get("category") if isinstance(raw.get("details"), dict) else None,
+            category=raw.get("details", {}).get("category")
+            if isinstance(raw.get("details"), dict)
+            else None,
             transaction_date=tx_date,
             is_manual=False,
         )

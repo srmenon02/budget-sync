@@ -74,7 +74,7 @@ export default function Dashboard() {
   const paycheckEnd = day <= 15 ? `${month}-15` : `${month}-${String(lastDay).padStart(2, '0')}`
 
   const accountSummary = useAccountSummary()
-  const budgets = useBudgets(month, mode)
+  const budgets = useBudgets()
   const transactions = useTransactions({
     limit: 25,
     page: 1,
@@ -87,11 +87,11 @@ export default function Dashboard() {
 
   const txRows = transactions.data?.transactions ?? []
 
-  const chartRows = (budgets.data?.budgets ?? []).map((budget) => ({
-    category: budget.category?.trim() ? budget.category : 'Uncategorized',
-    budget: budget.limit,
-    actual: budget.spent,
-  }))
+  const chartRows = budgets.data ? [{
+    category: budgets.data.name || 'Active Budget',
+    budget: budgets.data.total_amount,
+    actual: budgets.data.spent_amount ?? 0,
+  }] : []
   const chartHeight = Math.max(280, chartRows.length * 46)
 
   const accountRows = accountSummary.data?.accounts ?? []
@@ -145,7 +145,7 @@ export default function Dashboard() {
         ) : accountSummary.isError ? (
           <p className="text-sm font-mono text-coral">Failed to load accounts.</p>
         ) : accountRows.length === 0 ? (
-          <EmptyState message="No accounts yet. Seed some data or connect a bank account." />
+          <EmptyState message="No accounts yet. Add one or connect a bank account." />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {accountRows.map((a, i) => (

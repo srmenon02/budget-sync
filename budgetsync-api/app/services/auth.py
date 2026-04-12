@@ -3,10 +3,18 @@ import os
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from supabase import AsyncClient, acreate_client as create_async_client
+from supabase import AsyncClient
+from supabase import acreate_client as create_async_client
 
 from ..models.user import User
-from ..schemas.auth import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, RegisterRequest, RegisterResponse
+from ..schemas.auth import (
+    AuthResponse,
+    LoginRequest,
+    RefreshRequest,
+    RefreshResponse,
+    RegisterRequest,
+    RegisterResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +43,7 @@ async def _client() -> AsyncClient:
     return await create_async_client(_get_supabase_url(), _get_supabase_anon_key())
 
 
-async def register(
-    payload: RegisterRequest, db: AsyncSession
-) -> RegisterResponse:
+async def register(payload: RegisterRequest, db: AsyncSession) -> RegisterResponse:
     """Create a new Supabase auth user and mirror into local users table."""
     sb = await _client()
     try:
@@ -74,7 +80,10 @@ async def register(
     if response.session is None:
         return RegisterResponse(
             status="pending_verification",
-            message="Account created. Check your email to confirm your account before signing in.",
+            message=(
+                "Account created. Check your email to confirm your account "
+                "before signing in."
+            ),
             user_id=user_id,
             email=email,
             access_token=None,
@@ -100,18 +109,31 @@ async def login(payload: LoginRequest) -> AuthResponse:
         response = await sb.auth.sign_in_with_password(
             {"email": payload.email, "password": payload.password}
         )
-        logger.info(f"Supabase returned: session={bool(response.session)}, user={bool(response.user)}")
+        logger.info(
+            "Supabase returned: session=%s, user=%s",
+            bool(response.session),
+            bool(response.user),
+        )
         if response.session:
             logger.info(f"Session expires at: {response.session.expires_at}")
     except Exception as exc:
-        logger.error(f"Supabase login failed: {type(exc).__name__}: {str(exc)}", exc_info=True)
+        logger.error(
+            "Supabase login failed: %s: %s",
+            type(exc).__name__,
+            str(exc),
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Authentication failed: {str(exc)}",
         ) from exc
 
     if response.session is None or response.user is None:
-        logger.error(f"Supabase login returned incomplete response: session={response.session}, user={response.user}")
+        logger.error(
+            "Supabase login returned incomplete response: session=%s, user=%s",
+            response.session,
+            response.user,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",

@@ -86,7 +86,12 @@ async def test_transactions_support_filtering_and_sorting(client, auth_headers):
     response = await client.get(
         "/transactions/",
         headers=headers,
-        params={"type": "expense", "category": "groceries", "sort": "amount", "sort_dir": "asc"},
+        params={
+            "type": "expense",
+            "category": "groceries",
+            "sort": "amount",
+            "sort_dir": "asc",
+        },
     )
     assert response.status_code == 200
     body = response.json()
@@ -131,7 +136,9 @@ async def test_budget_current_includes_actual_spend(client, auth_headers):
     )
     assert tx_response.status_code == 200
 
-    response = await client.get("/budgets/current", headers=headers, params={"month": "2026-03"})
+    response = await client.get(
+        "/budgets/current", headers=headers, params={"month": "2026-03"}
+    )
     assert response.status_code == 200
 
     budgets = response.json()["budgets"]
@@ -158,7 +165,12 @@ async def test_paycheck_budget_uses_current_pay_period_only(client, auth_headers
     budget_response = await client.post(
         "/budgets/",
         headers=headers,
-        json={"category": "Groceries", "amount": 200, "month": "2026-04", "period": "paycheck"},
+        json={
+            "category": "Groceries",
+            "amount": 200,
+            "month": "2026-04",
+            "period": "paycheck",
+        },
     )
     assert budget_response.status_code == 200
 
@@ -193,7 +205,12 @@ async def test_paycheck_budget_uses_current_pay_period_only(client, auth_headers
     response = await client.get(
         "/budgets/current",
         headers=headers,
-        params={"month": "2026-04", "period": "paycheck", "start_date": "2026-04-01", "end_date": "2026-04-15"},
+        params={
+            "month": "2026-04",
+            "period": "paycheck",
+            "start_date": "2026-04-01",
+            "end_date": "2026-04-15",
+        },
     )
     assert response.status_code == 200
 
@@ -234,7 +251,12 @@ async def test_payday_settings_drive_active_paycheck_window(client, auth_headers
     budget_response = await client.post(
         "/budgets/",
         headers=headers,
-        json={"category": "Groceries", "amount": 250, "month": current_month, "period": "paycheck"},
+        json={
+            "category": "Groceries",
+            "amount": 250,
+            "month": current_month,
+            "period": "paycheck",
+        },
     )
     assert budget_response.status_code == 200
 
@@ -306,14 +328,24 @@ async def test_reset_paycheck_budgets_clears_current_categories(client, auth_hea
     first_budget = await client.post(
         "/budgets/",
         headers=headers,
-        json={"category": "Groceries", "amount": 180, "month": current_month, "period": "paycheck"},
+        json={
+            "category": "Groceries",
+            "amount": 180,
+            "month": current_month,
+            "period": "paycheck",
+        },
     )
     assert first_budget.status_code == 200
 
     second_budget = await client.post(
         "/budgets/",
         headers=headers,
-        json={"category": "Dining", "amount": 90, "month": current_month, "period": "paycheck"},
+        json={
+            "category": "Dining",
+            "amount": 90,
+            "month": current_month,
+            "period": "paycheck",
+        },
     )
     assert second_budget.status_code == 200
 
@@ -467,8 +499,20 @@ async def test_bulk_transaction_import_creates_multiple_rows(client, auth_header
         json={
             "account_id": account_id,
             "items": [
-                {"description": "Grocery Store", "amount": 85.4, "category": "Groceries", "date": "2026-04-04", "tx_type": "expense"},
-                {"description": "Paycheck", "amount": 2500, "category": "Income", "date": "2026-04-05", "tx_type": "income"},
+                {
+                    "description": "Grocery Store",
+                    "amount": 85.4,
+                    "category": "Groceries",
+                    "date": "2026-04-04",
+                    "tx_type": "expense",
+                },
+                {
+                    "description": "Paycheck",
+                    "amount": 2500,
+                    "category": "Income",
+                    "date": "2026-04-05",
+                    "tx_type": "income",
+                },
             ],
         },
     )

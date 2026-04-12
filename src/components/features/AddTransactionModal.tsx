@@ -49,6 +49,8 @@ export function AddTransactionModal({ onClose }: Props) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
       queryClient.invalidateQueries({ queryKey: ['loans'] })
       onClose()
     },

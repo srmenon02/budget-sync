@@ -1,10 +1,11 @@
-import pytest
-from unittest.mock import AsyncMock, patch
-from datetime import date, datetime
 import uuid
+from datetime import date, datetime
+from unittest.mock import AsyncMock, patch
 
-from app.services.bank_sync.sync import sync_account
+import pytest
+
 from app.models.account import FinancialAccount
+from app.services.bank_sync.sync import sync_account
 
 
 @pytest.mark.asyncio
@@ -72,8 +73,8 @@ async def test_sync_account_inserts_transactions(db_session):
 
 @pytest.mark.asyncio
 async def test_sync_skips_duplicate_transactions(db_session):
-    from app.utils.encryption import encrypt_token
     from app.models.transaction import Transaction
+    from app.utils.encryption import encrypt_token
 
     acct_id = uuid.uuid4()
     account = FinancialAccount(

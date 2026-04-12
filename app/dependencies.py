@@ -1,14 +1,15 @@
 import logging
 from typing import Optional
-from fastapi import Depends, Header
-from jose import jwt, JWTError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from app.database import get_db
+from fastapi import Depends, Header
+from jose import JWTError, jwt
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config import get_settings
-from app.models.user import User
+from app.database import get_db
 from app.exceptions import UnauthorizedError
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

@@ -1,17 +1,19 @@
 import logging
 import uuid
 from datetime import date
+
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.user import User
-from app.models.goal import Goal
+from app.exceptions import ForbiddenError, GoalNotFoundError
 from app.models.account import FinancialAccount
-from app.schemas.goal import GoalCreate, GoalResponse, GoalUpdate, GoalWithProgress
-from app.exceptions import GoalNotFoundError, ForbiddenError
+from app.models.goal import Goal
+from app.models.user import User
+from app.schemas.goal import (GoalCreate, GoalResponse, GoalUpdate,
+                              GoalWithProgress)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/goals", tags=["goals"])
@@ -38,7 +40,9 @@ async def list_goals(
         current_balance = 0.0
         if g.linked_account_id:
             acc_result = await db.execute(
-                select(FinancialAccount).where(FinancialAccount.id == g.linked_account_id)
+                select(FinancialAccount).where(
+                    FinancialAccount.id == g.linked_account_id
+                )
             )
             acc = acc_result.scalar_one_or_none()
             if acc and acc.current_balance:
@@ -58,7 +62,9 @@ async def list_goals(
                 created_at=g.created_at,
                 current_balance=current_balance,
                 progress_percent=min(progress, 100.0),
-                estimated_completion_date=_estimate_completion(current_balance, target, g.target_date),
+                estimated_completion_date=_estimate_completion(
+                    current_balance, target, g.target_date
+                ),
             )
         )
     return enriched
