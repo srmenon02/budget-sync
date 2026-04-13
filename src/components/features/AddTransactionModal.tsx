@@ -238,9 +238,9 @@ export function AddTransactionModal({ onClose, budgetCategories }: Props) {
           <button
             type="submit"
             disabled={mutation.isPending || !canSubmit}
-            className="px-4 py-2.5 font-mono text-xs rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
+            className="px-4 py-2.5 font-mono text-xs rounded-lg bg-gold text-white font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
           >
-            {mutation.isPending ? 'Adding…' : 'Add Transaction'}
+            {mutation.isPending ? 'Adding...' : 'Add Transaction'}
           </button>
         </div>
       </form>

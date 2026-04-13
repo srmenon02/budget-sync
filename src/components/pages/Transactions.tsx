@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Check } from 'lucide-react'
 
 import { useAccounts } from '@/components/hooks/useAccounts'
 import { useBudgets } from '@/components/hooks/useBudgets'
@@ -133,9 +134,9 @@ function TransactionRow({
           {tx.merchant_name ?? tx.description ?? 'Transaction'}
         </span>
         <div className="flex items-center gap-2 flex-wrap">
-          {tx.category ? <span className="font-mono text-xs text-gold/70">{tx.category}</span> : null}
+          {tx.category ? <span className="font-mono text-xs text-gold">{tx.category}</span> : null}
           <span className="font-mono text-xs text-parchment-dim">{tx.transaction_date}</span>
-          {tx.is_manual ? <span className="font-mono text-xs text-parchment-dim/50 border border-ink-border px-1 rounded">manual</span> : null}
+          {tx.is_manual ? <span className="font-mono text-xs text-parchment-dim border border-ink-border px-1 rounded">manual</span> : null}
         </div>
       </div>
       <div className="flex items-center gap-3 shrink-0">
@@ -149,7 +150,9 @@ function TransactionRow({
             className={`font-mono text-xs px-2 py-1 rounded border transition-colors ${tx.is_paid_off ? 'border-jade/40 text-jade bg-jade/10' : 'border-ink-border text-parchment-dim hover:text-parchment hover:bg-ink-raised'}`}
             title={tx.is_paid_off ? 'Mark as unpaid' : 'Mark as paid off'}
           >
-            {tx.is_paid_off ? '✓ Paid' : 'Unpaid'}
+            {tx.is_paid_off ? (
+              <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Paid</span>
+            ) : 'Unpaid'}
           </button>
         ) : null}
         <button
@@ -289,14 +292,14 @@ export default function Transactions() {
               resetMutation.mutate()
             }}
             disabled={resetMutation.isPending}
-            className="font-mono text-xs px-3 py-1.5 rounded border border-coral/40 text-coral/90 hover:bg-coral/10 transition-colors disabled:opacity-50"
+            className="font-mono text-xs px-3 py-1.5 rounded border border-coral/40 text-coral hover:bg-coral/10 transition-colors disabled:opacity-50"
           >
             {resetMutation.isPending ? 'Resetting...' : 'Reset'}
           </button>
           <button
             onClick={() => setShowAdd(true)}
             disabled={!canLogTransactions}
-            className="font-mono text-xs px-4 py-2.5 rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors whitespace-nowrap"
+            className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-white hover:bg-gold-dim transition-colors whitespace-nowrap"
             title={!canLogTransactions ? 'Set up a budget with subcategories first' : undefined}
           >
             + add income or expense

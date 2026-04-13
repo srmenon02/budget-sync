@@ -262,7 +262,7 @@ export default function BudgetPage() {
           <div className="flex gap-2 justify-center mt-4">
             <button
               onClick={() => setShowCreateForm(true)}
-              className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors"
+              className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-white font-medium hover:bg-gold-dim transition-colors"
             >
               Create Budget
             </button>
@@ -458,7 +458,7 @@ export default function BudgetPage() {
               <button
                 type="submit"
                 disabled={createMutation.isPending}
-                className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
+                className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-white font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
               >
                 {createMutation.isPending ? 'Saving...' : 'Save Category Budget'}
               </button>

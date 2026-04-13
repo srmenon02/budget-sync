@@ -135,7 +135,7 @@ export default function LoansPage() {
         <button
           type="button"
           onClick={() => setShowCreateForm((value) => !value)}
-          className="rounded-lg border border-gold/40 bg-gold-faint px-4 py-2.5 font-mono text-xs text-gold transition-colors hover:bg-gold/20"
+          className="rounded-lg bg-gold px-4 py-2.5 font-mono text-xs text-white transition-colors hover:bg-gold-dim"
         >
           {showCreateForm ? 'Close form' : '+ add loan'}
         </button>
@@ -207,9 +207,9 @@ export default function LoansPage() {
               <button
                 type="submit"
                 disabled={createMutation.isPending}
-                className="rounded-lg bg-gold px-4 py-2.5 font-mono text-xs font-medium text-ink transition-colors hover:bg-gold-dim disabled:opacity-50"
+                className="rounded-lg bg-gold px-4 py-2.5 font-mono text-xs font-medium text-parchment transition-colors hover:bg-gold-dim disabled:opacity-50"
               >
-                {createMutation.isPending ? 'Creating…' : 'Create Loan'}
+                {createMutation.isPending ? 'Creating...' : 'Create Loan'}
               </button>
             </div>
           </form>

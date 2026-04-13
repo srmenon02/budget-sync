@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from 'react'
+import { LogOut } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { refreshSession } from '@/api/auth'
 
@@ -7,7 +8,6 @@ const Accounts = lazy(() => import('./components/pages/Accounts'))
 const Transactions = lazy(() => import('./components/pages/Transactions'))
 const Budget = lazy(() => import('./components/pages/Budget'))
 const Loans = lazy(() => import('./components/pages/Loans'))
-const Settings = lazy(() => import('./components/pages/Settings'))
 const Login = lazy(() => import('./components/pages/Login'))
 const Register = lazy(() => import('./components/pages/Register'))
 
@@ -17,7 +17,6 @@ const NAV = [
   { label: 'Income and Expenses', path: '/transactions' },
   { label: 'Budget', path: '/budget' },
   { label: 'Loans', path: '/loans' },
-  { label: 'Settings', path: '/settings' },
 ]
 
 function getPage(path: string) {
@@ -27,7 +26,6 @@ function getPage(path: string) {
   if (path.startsWith('/transactions')) return <Transactions />
   if (path.startsWith('/budget')) return <Budget />
   if (path.startsWith('/loans')) return <Loans />
-  if (path.startsWith('/settings')) return <Settings />
   return <Dashboard />
 }
 
@@ -79,7 +77,7 @@ export default function App() {
 
   function renderPage() {
     if (!hasHydrated) {
-      return <div className="text-parchment-dim font-mono text-sm py-20 text-center">loading…</div>
+      return <div className="text-parchment-dim font-mono text-sm py-20 text-center">Loading...</div>
     }
     if (path.startsWith('/login')) {
       return <Login onSuccess={() => navigate('/')} onNavigateRegister={() => navigate('/register')} />
@@ -98,88 +96,60 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      {/* Sidebar nav — desktop; top bar on mobile */}
       {token ? (
-        <div className="flex min-h-screen">
-          {/* Sidebar */}
-          <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-ink-border bg-ink-card/60 backdrop-blur-sm fixed h-full z-20">
-            {/* Logo */}
-            <div className="px-7 pt-8 pb-8">
-              <div className="flex items-baseline gap-1">
-                <span
-                  className="font-display text-2xl text-gold leading-none"
-                  style={{ fontVariationSettings: '"opsz" 40, "wght" 600', fontStyle: 'italic' }}
-                >
-                  Ledger
-                </span>
-                <span className="text-parchment-dim text-xs tracking-widest uppercase ml-1 mb-0.5 font-mono">sync</span>
+        <div className="min-h-screen">
+          <header className="sticky top-0 z-30 border-b border-ink-border/80 bg-ink-card/90 backdrop-blur-md">
+            <div className="max-w-7xl mx-auto px-4 md:px-10 py-4 md:py-6">
+              <div className="flex flex-wrap items-center gap-4 md:gap-5">
+                <div className="min-w-0">
+                  <span
+                    className="font-display text-4xl md:text-5xl text-gold leading-none"
+                    style={{ fontVariationSettings: '"opsz" 52, "wght" 700' }}
+                  >
+                    Ledger
+                  </span>
+                </div>
+
+                <div className="ml-auto flex items-center gap-3">
+                  <p className="hidden md:block text-xs font-mono text-parchment-dim max-w-[220px] truncate">{email}</p>
+                  <button
+                    onClick={() => { logout(); navigate('/login') }}
+                    className="inline-flex items-center gap-1.5 font-mono text-xs px-3 py-1.5 rounded-lg border border-ink-border text-parchment-muted hover:text-parchment hover:bg-ink-raised transition-colors"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    sign out
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Nav links */}
-            <nav className="flex flex-col gap-1.5 px-4 flex-1">
-              {NAV.map((n) => (
-                <button
-                  key={n.path}
-                  onClick={() => navigate(n.path)}
-                  className={`text-left text-sm px-3.5 py-2.5 rounded-lg transition-all duration-150 font-mono ${
-                    isActive(n.path)
-                      ? 'text-gold bg-gold-faint border border-gold/20'
-                      : 'text-parchment-muted hover:text-parchment hover:bg-ink-raised'
-                  }`}
-                >
-                  {n.label}
-                </button>
-              ))}
-            </nav>
-
-            {/* Footer */}
-            <div className="px-5 pb-7 border-t border-ink-border pt-4">
-              <p className="text-parchment-dim text-xs font-mono truncate mb-2.5">{email}</p>
-              <button
-                onClick={() => { logout(); navigate('/login') }}
-                className="text-xs text-parchment-dim hover:text-coral transition-colors font-mono"
-              >
-                sign out ↗
-              </button>
+              <nav className="mt-5 flex gap-2 overflow-x-auto pb-1" aria-label="Primary">
+                {NAV.map((n) => (
+                  <button
+                    key={n.path}
+                    onClick={() => navigate(n.path)}
+                    aria-current={isActive(n.path) ? 'page' : undefined}
+                    className={`whitespace-nowrap font-mono text-xs md:text-sm px-3.5 py-2 rounded-lg border transition-colors ${
+                      isActive(n.path)
+                        ? 'text-white bg-gold border-gold'
+                        : 'text-parchment-muted border-ink-border hover:text-parchment hover:bg-ink-raised'
+                    }`}
+                  >
+                    {n.label}
+                  </button>
+                ))}
+              </nav>
             </div>
-          </aside>
-
-          {/* Mobile top bar */}
-          <header className="md:hidden fixed top-0 left-0 right-0 z-20 bg-ink-card/80 backdrop-blur-md border-b border-ink-border flex items-center px-4 h-14">
-            <span className="font-display text-xl text-gold italic" style={{ fontVariationSettings: '"opsz" 40, "wght" 600' }}>
-              Ledger
-            </span>
-            <div className="flex gap-3 ml-5">
-              {NAV.map((n) => (
-                <button
-                  key={n.path}
-                  onClick={() => navigate(n.path)}
-                  className={`text-xs font-mono transition-colors ${isActive(n.path) ? 'text-gold' : 'text-parchment-muted hover:text-parchment'}`}
-                >
-                  {n.label}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => { logout(); navigate('/login') }}
-              className="ml-auto text-xs text-parchment-dim hover:text-coral font-mono transition-colors"
-            >
-              out ↗
-            </button>
           </header>
 
-          {/* Main content */}
-          <main className="flex-1 md:ml-60 min-h-screen pt-14 md:pt-0">
-            <div className="max-w-6xl mx-auto px-4 md:px-10 py-8 md:py-10">
-              <Suspense fallback={<div className="text-parchment-dim font-mono text-sm py-20 text-center">loading…</div>}>
-                {renderPage()}
-              </Suspense>
-            </div>
+          <main className="max-w-7xl mx-auto px-4 md:px-10 py-8 md:py-12">
+
+            <Suspense fallback={<div className="text-parchment-dim font-mono text-sm py-20 text-center">Loading...</div>}>
+              {renderPage()}
+            </Suspense>
           </main>
         </div>
       ) : (
-        <Suspense fallback={<div className="text-parchment-dim font-mono text-sm py-20 text-center">loading…</div>}>
+        <Suspense fallback={<div className="text-parchment-dim font-mono text-sm py-20 text-center">Loading...</div>}>
           {renderPage()}
         </Suspense>
       )}

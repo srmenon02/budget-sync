@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { isAxiosError } from 'axios'
+import { ArrowRight } from 'lucide-react'
 import { register } from '@/api/auth'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -98,8 +99,8 @@ export default function Register({ onSuccess, onNavigateLogin }: RegisterProps) 
         <div
           className="rounded-2xl border border-ink-border p-6 md:p-8 flex flex-col gap-5 md:gap-6"
           style={{
-            background: 'linear-gradient(160deg, #1e1e28 0%, #141418 100%)',
-            boxShadow: '0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+            background: 'linear-gradient(160deg, #fffdf8 0%, #f3ebda 100%)',
+            boxShadow: '0 24px 60px rgba(77, 60, 34, 0.18), inset 0 1px 0 rgba(255,255,255,0.9)',
           }}
         >
           <div>
@@ -160,9 +161,9 @@ export default function Register({ onSuccess, onNavigateLogin }: RegisterProps) 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-1 w-full rounded-lg bg-gold text-ink font-mono text-sm font-medium py-3 hover:bg-gold-dim transition-colors disabled:opacity-50"
+              className="mt-1 w-full rounded-lg bg-gold text-white font-mono text-sm font-medium py-3 hover:bg-gold-dim transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2"
             >
-              {isSubmitting ? 'creating…' : 'create account →'}
+              {isSubmitting ? 'Creating...' : <><span>Create account</span><ArrowRight className="h-4 w-4" /></>}
             </button>
           </form>
 

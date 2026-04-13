@@ -1,0 +1,7 @@
+# Default owners for all repository files.
+* @smenon02
+
+# Critical paths require explicit owner review.
+/.github/workflows/ @smenon02
+/budgetsync-api/ @smenon02
+/app/ @owner

@@ -115,7 +115,7 @@ export default function Settings() {
               <option value="bi-weekly">Bi-weekly</option>
               <option value="monthly">Monthly</option>
             </select>
-            <p className="font-mono text-xs text-parchment-dim/70 mt-1">
+            <p className="font-mono text-xs text-parchment-dim mt-1">
               This determines how transactions and budgets are grouped in paycheck mode.
             </p>
           </div>
@@ -144,7 +144,7 @@ export default function Settings() {
               onChange={(e) => setFormData({ ...formData, secondary_payday_day: Number(e.target.value) })}
               className="w-full"
             />
-            <p className="font-mono text-xs text-parchment-dim/70 mt-1">
+            <p className="font-mono text-xs text-parchment-dim mt-1">
               Used for bi-weekly paychecks. Must be different from primary payday.
             </p>
           </div>
@@ -156,7 +156,7 @@ export default function Settings() {
           <button
             type="submit"
             disabled={updateMutation.isPending}
-            className="font-mono text-xs px-4 py-2.5 rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors disabled:opacity-50 w-full"
+            className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-white hover:bg-gold-dim transition-colors disabled:opacity-50 w-full"
           >
             {updateMutation.isPending ? 'Saving...' : 'Save Settings'}
           </button>

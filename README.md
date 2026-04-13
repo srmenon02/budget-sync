@@ -5,7 +5,7 @@ This repository is the runnable BudgetSync app workspace.
 ## Project Layout
 
 - `budgetsync-api/` - FastAPI backend
-- `budgetsync-web/` - Vite + React frontend
+- `src/` + root `package.json` - Vite + React frontend
 
 ## Prerequisites
 
@@ -37,7 +37,7 @@ curl http://localhost:8000/health
 Open a second terminal:
 
 ```bash
-cd budgetsync-web
+cd .
 npm install
 npm run dev
 ```
@@ -102,9 +102,41 @@ cd budgetsync-api
 uvicorn app.main:app --reload --port 8000
 ```
 
-### `npm run dev` fails at repo root
+### `npm run dev` fails
 
-The frontend app lives in `budgetsync-web/`. Run frontend commands there.
+Install dependencies in this folder and run commands from repo root:
+
+```bash
+cd /Users/smeno/Documents/Personal/Projects/mvi-generation/budget-sync
+npm ci
+npm run dev
+```
+
+## CI/CD
+
+GitHub Actions workflows in `.github/workflows/` now enforce:
+
+- Frontend lint, type-check, tests, and build
+- Backend lint, tests with coverage, and dependency audit
+- PR-only secret scan and dependency audit checks
+- CD on successful CI push to `main`/`master`, with artifact pull, GHCR publish, and Trivy scan
+
+## Branch Protection (Required)
+
+In GitHub branch protection for `main`, require these status checks before merge:
+
+- `frontend-quality`
+- `backend-quality`
+- `Gitleaks Secret Scan`
+- `Dependency Audit`
+- `Verify CI Passed`
+
+Also enable:
+
+- Require pull request reviews
+- Dismiss stale approvals on new commits
+- Require conversation resolution before merging
+- Restrict force pushes and branch deletion
 
 ## Git Note
 

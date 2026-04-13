@@ -1,0 +1,15 @@
+# Exclude local and build artifacts from Docker build context.
+.git
+.github
+node_modules
+dist
+coverage
+htmlcov
+venv
+.venv
+__pycache__
+*.pyc
+.env
+.env.*
+budgetsync-web
+src

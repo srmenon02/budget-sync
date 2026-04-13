@@ -48,8 +48,8 @@ function TransactionRow({ tx }: { tx: Transaction }) {
         <span className="font-mono text-sm text-parchment truncate">
           {tx.merchant_name ?? tx.description ?? 'Transaction'}
         </span>
-        <span className="font-mono text-xs text-parchment-dim">
-          {tx.category ? <span className="text-gold/70">{tx.category}</span> : null}
+          <span className="font-mono text-xs text-parchment-dim">
+          {tx.category ? <span className="text-gold">{tx.category}</span> : null}
           {tx.category ? ' · ' : ''}
           {tx.transaction_date}
         </span>
@@ -174,20 +174,20 @@ export default function Dashboard() {
                   layout="vertical"
                   margin={{ left: 18, right: 16, top: 8, bottom: 8 }}
                 >
-                  <CartesianGrid stroke="#2f2f2f" strokeDasharray="3 3" />
-                  <XAxis type="number" stroke="#a5a19a" tick={{ fontSize: 12 }} />
+                  <CartesianGrid stroke="#c8d2cc" strokeDasharray="3 3" />
+                  <XAxis type="number" stroke="#4b5b55" tick={{ fontSize: 12 }} />
                   <YAxis
                     type="category"
                     dataKey="category"
                     width={130}
-                    stroke="#a5a19a"
+                    stroke="#4b5b55"
                     tick={{ fontSize: 11 }}
                     tickMargin={6}
                     tickFormatter={(value: string) => (value && value.trim() ? value : 'Uncategorized')}
                   />
                   <Tooltip />
-                  <Bar dataKey="budget" fill="#d4a84a" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="actual" fill="#d96f5f" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="budget" fill="#1f5c4d" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="actual" fill="#b4574a" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

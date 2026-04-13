@@ -1,10 +1,15 @@
 import React from 'react'
+import { Sparkles, X } from 'lucide-react'
 
 export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-xl border border-ink-border bg-ink-card p-6 ${className}`}
-      style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' }}
+      className={`rounded-2xl border border-ink-border/80 bg-ink-card/80 p-6 ${className}`}
+      style={{
+        boxShadow: '0 10px 30px rgba(84, 66, 35, 0.1), inset 0 1px 0 rgba(255,255,255,0.8)',
+        backgroundImage:
+          'linear-gradient(140deg, rgba(255,255,255,0.65), rgba(255,255,255,0.1) 30%), linear-gradient(180deg, rgba(31,122,76,0.03), rgba(123,90,31,0.04))',
+      }}
     >
       {children}
     </div>
@@ -30,7 +35,7 @@ export function Badge({
   const variants = {
     default: 'bg-ink-raised text-parchment-muted border border-ink-border',
     success: 'bg-jade/10 text-jade border border-jade/20',
-    warning: 'bg-gold/10 text-gold border border-gold/20',
+    warning: 'bg-gold-faint text-gold border border-gold/30',
     error: 'bg-coral/10 text-coral border border-coral/20',
   }
   return <span className={`${base} ${variants[variant]}`}>{children}</span>
@@ -38,9 +43,9 @@ export function Badge({
 
 export function EmptyState({ message }: { message: string }) {
   return (
-    <div className="text-center py-16 border border-dashed border-ink-border rounded-xl bg-ink-card/40">
-      <div className="text-3xl mb-2 opacity-20">◈</div>
-      <p className="text-sm font-mono text-parchment-dim">{message}</p>
+    <div className="text-center py-16 border border-dashed border-ink-border/80 rounded-2xl bg-ink-card/35">
+      <Sparkles className="mx-auto mb-3 h-7 w-7 text-gold" aria-hidden="true" />
+      <p className="text-sm font-mono text-parchment-muted">{message}</p>
     </div>
   )
 }
@@ -57,14 +62,14 @@ export function Modal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6"
-      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(40, 31, 16, 0.24)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="w-full max-w-lg rounded-xl border border-ink-border p-5 md:p-6 animate-fade-up max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-2xl border border-ink-border/80 p-5 md:p-6 animate-fade-up max-h-[90vh] overflow-y-auto"
         style={{
-          background: 'linear-gradient(160deg, #1e1e28 0%, #141418 100%)',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)',
+          background: 'linear-gradient(160deg, #ffffff 0%, #edf3ef 100%)',
+          boxShadow: '0 20px 48px rgba(73, 59, 33, 0.18), inset 0 1px 0 rgba(255,255,255,0.9)',
         }}
       >
         <div className="flex items-center justify-between mb-4 md:mb-5">
@@ -76,10 +81,10 @@ export function Modal({
           </h2>
           <button
             onClick={onClose}
-            className="text-parchment-dim hover:text-parchment transition-colors text-xl leading-none font-mono"
+            className="text-parchment-dim hover:text-parchment transition-colors"
             aria-label="Close"
           >
-            ×
+            <X className="h-5 w-5" />
           </button>
         </div>
         {children}

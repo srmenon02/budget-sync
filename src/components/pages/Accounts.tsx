@@ -66,7 +66,7 @@ function AccountRow({ account }: { account: FinancialAccount }) {
                 disabled={deleteMutation.isPending}
                 className="font-mono text-xs px-2.5 py-1.5 rounded border border-coral/50 text-coral hover:bg-coral/10 transition-colors disabled:opacity-50"
               >
-                {deleteMutation.isPending ? '…' : 'Confirm'}
+                {deleteMutation.isPending ? '...' : 'Confirm'}
               </button>
               <button
                 onClick={() => setConfirming(false)}
@@ -124,7 +124,7 @@ export default function Accounts() {
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          className="font-mono text-xs px-4 py-2.5 rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors whitespace-nowrap"
+          className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-white hover:bg-gold-dim transition-colors whitespace-nowrap"
         >
           + add account
         </button>

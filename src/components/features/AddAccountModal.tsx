@@ -266,7 +266,7 @@ export function AddAccountModal({ onClose, account }: Props) {
               disabled={connectMutation.isPending}
               className="px-4 py-2.5 font-mono text-xs rounded-lg border border-gold/40 text-gold bg-gold-faint hover:bg-gold/20 transition-colors disabled:opacity-50"
             >
-              {connectMutation.isPending ? 'Connecting…' : 'Connect Bank (Teller)'}
+              {connectMutation.isPending ? 'Connecting...' : 'Connect Bank (Teller)'}
             </button>
           ) : null}
           <button
@@ -279,9 +279,9 @@ export function AddAccountModal({ onClose, account }: Props) {
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="px-4 py-2.5 font-mono text-xs rounded-lg bg-gold text-ink font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
+            className="px-4 py-2.5 font-mono text-xs rounded-lg bg-gold text-white font-medium hover:bg-gold-dim transition-colors disabled:opacity-50"
           >
-            {mutation.isPending ? (isEditing ? 'Saving…' : 'Adding…') : (isEditing ? 'Save Changes' : 'Add Account')}
+            {mutation.isPending ? (isEditing ? 'Saving...' : 'Adding...') : (isEditing ? 'Save Changes' : 'Add Account')}
           </button>
         </div>
       </form>

@@ -1,20 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Cabin:wght@500;700&family=Cormorant+Garamond:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ── Design tokens ─────────────────────────────────── */
 :root {
-  --ink:            #0b0b0f;
-  --ink-card:       #141418;
-  --ink-raised:     #1e1e28;
-  --ink-border:     #2e2e3c;
-  --gold:           #e8b84b;
-  --gold-dim:       #b08a2c;
-  --parchment:      #e8e4de;
-  --parchment-muted: #8b8999;
-  --parchment-dim:  #52505e;
-  --jade:           #4ade80;
-  --coral:          #f87171;
+  --ink: #f4f6f4;
+  --ink-card: #ffffff;
+  --ink-raised: #ecf1ee;
+  --ink-border: #c8d2cc;
+  --gold: #1f5c4d;
+  --gold-dim: #18493d;
+  --parchment: #1e2a25;
+  --parchment-muted: #4b5b55;
+  --parchment-dim: #667670;
+  --jade: #2e7d5b;
+  --coral: #b4574a;
 }
 
 /* ── Base ────────────────────────────────────────────── */
@@ -25,25 +27,45 @@
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
 }
 
 body {
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: 'Cabin', 'Trebuchet MS', sans-serif;
   color: var(--parchment);
   background-color: var(--ink);
   background-image:
-    radial-gradient(ellipse 100% 55% at 85% -5%, rgba(232, 184, 75, 0.07) 0%, transparent 60%),
-    radial-gradient(circle, rgba(46, 46, 60, 0.9) 1px, transparent 1px);
-  background-size: 100% 100%, 28px 28px;
+    radial-gradient(900px 520px at -12% -8%, rgba(31, 92, 77, 0.1), transparent 66%),
+    radial-gradient(860px 500px at 112% -8%, rgba(75, 91, 85, 0.08), transparent 62%),
+    linear-gradient(165deg, #f4f6f4 0%, #edf2ef 44%, #e8eeea 100%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(28, 42, 41, 0.03) 0,
+      rgba(28, 42, 41, 0.03) 1px,
+      transparent 1px,
+      transparent 34px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(31, 42, 36, 0.02) 0,
+      rgba(31, 42, 36, 0.02) 1px,
+      transparent 1px,
+      transparent 12px
+    );
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 20px 20px;
   min-height: 100vh;
-  line-height: 1.4;
+  line-height: 1.5;
+}
+
+#root {
+  min-height: 100vh;
 }
 
 /* ── Scrollbar ───────────────────────────────────────── */
 ::-webkit-scrollbar        { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track  { background: var(--ink); }
 ::-webkit-scrollbar-thumb  { background: var(--ink-border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--parchment-dim); }
+::-webkit-scrollbar-thumb:hover { background: #a8b6ae; }
 
 /* ── Form inputs ─────────────────────────────────────── */
 input,
@@ -75,7 +97,15 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(232, 184, 75, 0.1);
+  box-shadow: 0 0 0 3px rgba(31, 92, 77, 0.2);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 input::placeholder,
@@ -92,7 +122,7 @@ select option {
 .app-page {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 2rem;
 }
 
 .app-section {
@@ -104,9 +134,14 @@ select option {
 .section-kicker {
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
   font-size: 0.68rem;
-  color: var(--parchment-dim);
+  color: var(--parchment-muted);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
+}
+
+::selection {
+  background: rgba(31, 92, 77, 0.16);
+  color: var(--parchment);
 }
 
 /* ── Animation delay utilities ───────────────────────── */

@@ -20,3 +20,9 @@ repos:
     rev: 6.1.0
     hooks:
       - id: flake8
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        args: ["protect", "--verbose", "--redact", "--staged"]
