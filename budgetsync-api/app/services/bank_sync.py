@@ -1,6 +1,10 @@
 import base64
+import binascii
 import os
+import tempfile
+from contextlib import contextmanager
 from datetime import date, datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -113,11 +117,76 @@ def _teller_base_url() -> str:
     return os.getenv("TELLER_API_BASE_URL", "https://api.teller.io").rstrip("/")
 
 
-async def fetch_teller_accounts(access_token: str) -> list[dict[str, Any]]:
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        response = await client.get(
-            f"{_teller_base_url()}/accounts", headers=_auth_headers(access_token)
+def _decode_b64_secret(value: str, name: str) -> bytes:
+    try:
+        return base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError(f"{name} must be valid base64") from exc
+
+
+def _write_secret_temp_file(data: bytes, suffix: str) -> str:
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    path = tmp.name
+    try:
+        tmp.write(data)
+        tmp.flush()
+    finally:
+        tmp.close()
+    os.chmod(path, 0o600)
+    return path
+
+
+@contextmanager
+def _teller_tls_client_options() -> Any:
+    cert_b64 = os.getenv("TELLER_CLIENT_CERT_B64", "").strip()
+    key_b64 = os.getenv("TELLER_CLIENT_KEY_B64", "").strip()
+    ca_b64 = os.getenv("TELLER_CA_CERT_B64", "").strip()
+
+    if not cert_b64 and not key_b64 and not ca_b64:
+        yield {"verify": True}
+        return
+
+    if bool(cert_b64) != bool(key_b64):
+        raise ValueError(
+            "TELLER_CLIENT_CERT_B64 and TELLER_CLIENT_KEY_B64 must both be set"
         )
+
+    temp_paths: list[str] = []
+    options: dict[str, Any] = {"verify": True}
+
+    try:
+        if cert_b64 and key_b64:
+            cert_path = _write_secret_temp_file(
+                _decode_b64_secret(cert_b64, "TELLER_CLIENT_CERT_B64"), ".crt"
+            )
+            key_path = _write_secret_temp_file(
+                _decode_b64_secret(key_b64, "TELLER_CLIENT_KEY_B64"), ".key"
+            )
+            temp_paths.extend([cert_path, key_path])
+            options["cert"] = (cert_path, key_path)
+
+        if ca_b64:
+            ca_path = _write_secret_temp_file(
+                _decode_b64_secret(ca_b64, "TELLER_CA_CERT_B64"), ".pem"
+            )
+            temp_paths.append(ca_path)
+            options["verify"] = ca_path
+
+        yield options
+    finally:
+        for path in temp_paths:
+            try:
+                Path(path).unlink(missing_ok=True)
+            except OSError:
+                continue
+
+
+async def fetch_teller_accounts(access_token: str) -> list[dict[str, Any]]:
+    with _teller_tls_client_options() as tls_options:
+        async with httpx.AsyncClient(timeout=20.0, **tls_options) as client:
+            response = await client.get(
+                f"{_teller_base_url()}/accounts", headers=_auth_headers(access_token)
+            )
     response.raise_for_status()
     data = response.json()
     if not isinstance(data, list):
@@ -128,12 +197,13 @@ async def fetch_teller_accounts(access_token: str) -> list[dict[str, Any]]:
 async def fetch_teller_transactions(
     access_token: str, external_account_id: str
 ) -> list[dict[str, Any]]:
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        response = await client.get(
-            f"{_teller_base_url()}/accounts/{external_account_id}/transactions",
-            headers=_auth_headers(access_token),
-            params={"count": 500},
-        )
+    with _teller_tls_client_options() as tls_options:
+        async with httpx.AsyncClient(timeout=20.0, **tls_options) as client:
+            response = await client.get(
+                f"{_teller_base_url()}/accounts/{external_account_id}/transactions",
+                headers=_auth_headers(access_token),
+                params={"count": 500},
+            )
     response.raise_for_status()
     data = response.json()
     if not isinstance(data, list):

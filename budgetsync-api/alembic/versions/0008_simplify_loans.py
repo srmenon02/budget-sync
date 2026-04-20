@@ -19,9 +19,10 @@ def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
 
-    # Drop and recreate loans table with simplified schema
+    # Drop dependent table first, then recreate loans with simplified schema
+    if inspector.has_table("loan_payments"):
+        op.drop_table("loan_payments")
     if inspector.has_table("loans"):
-        # Drop with CASCADE to handle foreign key
         op.drop_table("loans")
 
     op.create_table(
