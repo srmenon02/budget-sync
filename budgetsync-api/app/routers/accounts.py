@@ -1,3 +1,5 @@
+import logging
+
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -123,8 +125,9 @@ async def api_connect_teller_account(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        logging.exception("connect-teller failed: %s", exc)
         raise HTTPException(
-            status_code=500, detail="Failed to connect Teller account"
+            status_code=500, detail=f"Failed to connect Teller account: {exc}"
         ) from exc
 
 
