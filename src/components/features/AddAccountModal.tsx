@@ -13,11 +13,12 @@ interface Props {
 }
 
 type TellerConnectEnrollment = {
-  id?: string
-  enrollment_id?: string
   accessToken?: string
   access_token?: string
+  user?: { id?: string }
+  enrollment?: { id?: string; institution?: { name?: string } }
   institution?: { name?: string }
+  signatures?: string[]
 }
 
 declare global {
@@ -56,7 +57,7 @@ function loadTellerScript(): Promise<void> {
 }
 
 function extractEnrollmentId(enrollment: TellerConnectEnrollment): string | null {
-  return enrollment.id ?? enrollment.enrollment_id ?? null
+  return enrollment.enrollment?.id ?? null
 }
 
 function extractAccessToken(enrollment: TellerConnectEnrollment): string | null {
@@ -139,7 +140,7 @@ export function AddAccountModal({ onClose, account }: Props) {
       return connectTellerAccount({
         enrollment_id: enrollmentId,
         access_token: accessToken,
-        institution_name: enrollment.institution?.name ?? provider ?? 'Teller',
+        institution_name: enrollment.enrollment?.institution?.name ?? enrollment.institution?.name ?? provider ?? 'Teller',
         account_name: name,
         account_type: type,
       })
