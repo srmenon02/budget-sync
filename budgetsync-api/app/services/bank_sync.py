@@ -1,5 +1,6 @@
 import base64
 import binascii
+import logging
 import os
 import tempfile
 from contextlib import contextmanager
@@ -8,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger(__name__)
 from cryptography.fernet import Fernet
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -187,6 +190,12 @@ async def fetch_teller_accounts(access_token: str) -> list[dict[str, Any]]:
             response = await client.get(
                 f"{_teller_base_url()}/accounts", headers=_auth_headers(access_token)
             )
+    if response.status_code != 200:
+        logger.error(
+            "Teller /accounts returned %s: %s",
+            response.status_code,
+            response.text,
+        )
     response.raise_for_status()
     data = response.json()
     if not isinstance(data, list):
