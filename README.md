@@ -119,7 +119,51 @@ GitHub Actions workflows in `.github/workflows/` now enforce:
 - Frontend lint, type-check, tests, and build
 - Backend lint, tests with coverage, and dependency audit
 - PR-only secret scan and dependency audit checks
-- CD on successful CI push to `main`/`master`, with artifact pull, GHCR publish, and Trivy scan
+- CD on successful CI push to `main`/`master`, with artifact pull, GHCR publish, Trivy scan, and Fly.io deploy
+
+## Fly.io Deployment
+
+Backend deploys to Fly.io from CD using the container image pushed to GHCR.
+
+### One-time Fly setup
+
+1. Install flyctl and authenticate locally.
+2. Create your app:
+
+```bash
+cd /Users/smeno/Documents/Personal/Projects/mvi-generation/budget-sync
+flyctl apps create <your-fly-app-name>
+```
+
+3. Update `fly.toml` `app` value (or keep it aligned with `FLY_APP_NAME`).
+4. Set runtime secrets in Fly for backend operation:
+
+```bash
+flyctl secrets set \
+	DATABASE_URL=... \
+	SECRET_KEY=... \
+	SUPABASE_URL=... \
+	SUPABASE_ANON_KEY=... \
+	SUPABASE_SERVICE_ROLE_KEY=... \
+	SUPABASE_JWT_SECRET=... \
+	TELLER_APP_ID=... \
+	TELLER_API_KEY=... \
+	RESEND_API_KEY=... \
+	ALLOWED_ORIGINS=https://<your-frontend-domain> \
+	ENVIRONMENT=production \
+	DEV_AUTH_BYPASS=false
+```
+
+### Required GitHub secrets for Fly deploy
+
+- `FLY_API_TOKEN`
+- `FLY_APP_NAME`
+
+Generate token locally:
+
+```bash
+flyctl auth token
+```
 
 ## Branch Protection (Required)
 

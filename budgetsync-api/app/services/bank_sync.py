@@ -145,6 +145,14 @@ def _teller_tls_client_options() -> Any:
     key_b64 = os.getenv("TELLER_CLIENT_KEY_B64", "").strip()
     ca_b64 = os.getenv("TELLER_CA_CERT_B64", "").strip()
 
+    logger.info(
+        "TLS config: cert_b64_len=%d key_b64_len=%d ca_b64_len=%d same_value=%s",
+        len(cert_b64),
+        len(key_b64),
+        len(ca_b64),
+        cert_b64 == key_b64,
+    )
+
     if not cert_b64 and not key_b64 and not ca_b64:
         yield {"verify": True}
         return
@@ -185,11 +193,19 @@ def _teller_tls_client_options() -> Any:
 
 
 async def fetch_teller_accounts(access_token: str) -> list[dict[str, Any]]:
+    logger.info(
+        "fetch_teller_accounts: token_prefix=%s token_len=%d base_url=%s",
+        access_token[:8] if len(access_token) > 8 else access_token,
+        len(access_token),
+        _teller_base_url(),
+    )
     with _teller_tls_client_options() as tls_options:
+        logger.info("TLS options keys: %s", list(tls_options.keys()))
         async with httpx.AsyncClient(timeout=20.0, **tls_options) as client:
             response = await client.get(
                 f"{_teller_base_url()}/accounts", headers=_auth_headers(access_token)
             )
+    logger.info("Teller /accounts response: status=%s", response.status_code)
     if response.status_code != 200:
         logger.error(
             "Teller /accounts returned %s: %s",

@@ -61,6 +61,27 @@ jobs:
           IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
         run: trivy image --severity CRITICAL,HIGH --exit-code 1 "${IMAGE_NAME}:${IMAGE_TAG}"
 
+      - name: Install flyctl
+        run: curl -L https://fly.io/install.sh | sh
+
+      - name: Deploy to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets['FLY_API_TOKEN'] }}
+          FLY_APP_NAME: ${{ secrets['FLY_APP_NAME'] }}
+          IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/budget-sync-api
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FLY_APP_NAME}" ]; then
+            echo "FLY_APP_NAME secret is required"
+            exit 1
+          fi
+          "${HOME}/.fly/bin/flyctl" deploy \
+            --app "${FLY_APP_NAME}" \
+            --config fly.toml \
+            --image "${IMAGE_NAME}:${IMAGE_TAG}" \
+            --remote-only
+
       - name: Deployment summary
         env:
           IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/budget-sync-api
@@ -73,4 +94,5 @@ jobs:
             echo "- Pulled artifact: frontend-dist"
             echo "- Pushed images: ${IMAGE_NAME}:${IMAGE_TAG}, ${IMAGE_NAME}:latest"
             echo "- Trivy scan: passed"
+            echo "- Fly deploy: passed"
           } >> "$GITHUB_STEP_SUMMARY"

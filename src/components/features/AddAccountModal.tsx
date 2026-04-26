@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { connectTellerAccount, createManualAccount, updateAccount } from '@/api/accounts'
 import { getTellerConnectConfig } from '@/api/bankSync'
+import { extractEnrollmentId, extractAccessToken, extractInstitutionName } from '@/lib/teller'
+import type { TellerEnrollmentPayload } from '@/lib/teller'
 import type { FinancialAccount } from '@/components/index'
 import { Modal } from '@/components/ui'
 
@@ -12,22 +14,13 @@ interface Props {
   account?: FinancialAccount
 }
 
-type TellerConnectEnrollment = {
-  accessToken?: string
-  access_token?: string
-  user?: { id?: string }
-  enrollment?: { id?: string; institution?: { name?: string } }
-  institution?: { name?: string }
-  signatures?: string[]
-}
-
 declare global {
   interface Window {
     TellerConnect?: {
       setup: (options: {
         applicationId: string
         environment: string
-        onSuccess: (enrollment: TellerConnectEnrollment) => void
+        onSuccess: (enrollment: TellerEnrollmentPayload) => void
         onExit?: () => void
       }) => { open: () => void }
     }
@@ -54,14 +47,6 @@ function loadTellerScript(): Promise<void> {
     script.onerror = () => reject(new Error('Failed to load Teller Connect script.'))
     document.body.appendChild(script)
   })
-}
-
-function extractEnrollmentId(enrollment: TellerConnectEnrollment): string | null {
-  return enrollment.enrollment?.id ?? null
-}
-
-function extractAccessToken(enrollment: TellerConnectEnrollment): string | null {
-  return enrollment.accessToken ?? enrollment.access_token ?? null
 }
 
 export function AddAccountModal({ onClose, account }: Props) {
@@ -125,7 +110,11 @@ export function AddAccountModal({ onClose, account }: Props) {
         const connect = window.TellerConnect!.setup({
           applicationId: config.application_id,
           environment: config.environment,
-          onSuccess: (result) => resolve(result),
+          onSuccess: (result) => {
+            // Log shape so we can debug mismatches across SDK versions / environments
+            console.debug('[TellerConnect] onSuccess raw payload:', JSON.stringify(result, null, 2))
+            resolve(result)
+          },
           onExit: () => reject(new Error('Bank connection cancelled.')),
         })
         connect.open()
@@ -134,13 +123,18 @@ export function AddAccountModal({ onClose, account }: Props) {
       const enrollmentId = extractEnrollmentId(enrollment)
       const accessToken = extractAccessToken(enrollment)
       if (!enrollmentId || !accessToken) {
-        throw new Error('Teller did not return required enrollment credentials.')
+        // Surface the actual payload shape so it's visible in browser console
+        console.error('[TellerConnect] Could not extract credentials. Raw payload:', enrollment)
+        throw new Error(
+          `Teller did not return required enrollment credentials. ` +
+          `enrollment_id=${enrollmentId ?? 'missing'} access_token=${accessToken ? '[present]' : 'missing'}`
+        )
       }
 
       return connectTellerAccount({
         enrollment_id: enrollmentId,
         access_token: accessToken,
-        institution_name: enrollment.enrollment?.institution?.name ?? enrollment.institution?.name ?? provider ?? 'Teller',
+        institution_name: extractInstitutionName(enrollment, provider || 'Teller'),
         account_name: name,
         account_type: type,
       })

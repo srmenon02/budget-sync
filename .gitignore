@@ -31,9 +31,3 @@ npm-debug.log*
 # Coverage
 htmlcov/
 coverage/
-
-
-*.env*
-.github/
-fly.toml
-*.md

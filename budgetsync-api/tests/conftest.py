@@ -1,6 +1,8 @@
 from collections.abc import AsyncGenerator, Callable, Generator
+import asyncio
 from pathlib import Path
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from jose import jwt
@@ -16,6 +18,16 @@ from app.main import app
 TEST_DB_PATH = Path("test_ci.db")
 TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 TEST_SECRET = "test-secret"
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Session-scoped event loop so session-scoped async fixtures work."""
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    yield loop
+    loop.close()
+
 
 engine = create_async_engine(TEST_DATABASE_URL, future=True, echo=False)
 TestSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

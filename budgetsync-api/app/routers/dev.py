@@ -1,6 +1,8 @@
+import base64
 import os
 from datetime import date, timedelta
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +12,11 @@ from ..models.transaction import Transaction
 from ..schemas.account import AccountCreate
 from ..schemas.transaction import TransactionCreate
 from ..services.accounts import create_account, list_accounts
+from ..services.bank_sync import (
+    _resolve_teller_environment,
+    _teller_base_url,
+    _teller_tls_client_options,
+)
 from ..services.transactions import create_transaction
 
 router = APIRouter()
@@ -88,3 +95,124 @@ async def seed_dev_data(
         "created_transactions": created_transactions,
         "account_id": account.id,
     }
+
+
+@router.get("/validate-teller-config")
+async def validate_teller_config(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> dict[str, object]:
+    """
+    Validates that the Teller integration is correctly configured without
+    exposing secret values.  Use this to diagnose cert/key mismatches,
+    missing env vars, or connectivity problems before running a real sync.
+
+    Checks performed
+    ────────────────
+    1. TELLER_APP_ID is set
+    2. TELLER_ENVIRONMENT resolves to a known value
+    3. TELLER_CLIENT_CERT_B64 and TELLER_CLIENT_KEY_B64 are valid base64
+    4. The decoded cert starts with '-----BEGIN CERTIFICATE-----'
+    5. The decoded key starts with '-----BEGIN' (private key header)
+    6. Cert and key decode to *different* values (catches copy-paste errors)
+    7. Sandbox API connectivity: GET /accounts with a dummy access token
+       returns 401 (expected) rather than a network or TLS error
+    """
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    if environment in {"production", "prod"}:
+        raise HTTPException(
+            status_code=403, detail="Validation endpoint disabled in production"
+        )
+
+    checks: dict[str, object] = {}
+
+    # 1. App ID
+    app_id = os.getenv("TELLER_APP_ID") or os.getenv("TELLER_APPLICATION_ID") or ""
+    checks["app_id_set"] = bool(app_id)
+
+    # 2. Environment
+    resolved_env = _resolve_teller_environment()
+    checks["teller_environment"] = resolved_env
+    checks["environment_valid"] = resolved_env in {"sandbox", "development", "production"}
+
+    # 3-6. Cert / key checks
+    cert_b64 = os.getenv("TELLER_CLIENT_CERT_B64", "").strip()
+    key_b64 = os.getenv("TELLER_CLIENT_KEY_B64", "").strip()
+
+    checks["cert_b64_present"] = bool(cert_b64)
+    checks["key_b64_present"] = bool(key_b64)
+
+    cert_ok = False
+    key_ok = False
+    cert_key_differ = None
+
+    if cert_b64:
+        try:
+            cert_bytes = base64.b64decode(cert_b64, validate=True)
+            cert_pem = cert_bytes.decode("utf-8", errors="replace")
+            cert_ok = cert_pem.strip().startswith("-----BEGIN CERTIFICATE-----")
+            checks["cert_valid_base64"] = True
+            checks["cert_looks_like_pem"] = cert_ok
+        except Exception as exc:
+            checks["cert_valid_base64"] = False
+            checks["cert_error"] = str(exc)
+
+    if key_b64:
+        try:
+            key_bytes = base64.b64decode(key_b64, validate=True)
+            key_pem = key_bytes.decode("utf-8", errors="replace")
+            key_ok = key_pem.strip().startswith("-----BEGIN")
+            checks["key_valid_base64"] = True
+            checks["key_looks_like_pem"] = key_ok
+        except Exception as exc:
+            checks["key_valid_base64"] = False
+            checks["key_error"] = str(exc)
+
+    if cert_b64 and key_b64:
+        cert_key_differ = cert_b64 != key_b64
+        checks["cert_and_key_differ"] = cert_key_differ
+
+    # 7. Connectivity probe — 401 expected, TLS/network errors mean misconfiguration
+    connectivity_status: str = "skipped"
+    connectivity_detail: str | None = None
+
+    if resolved_env in {"sandbox", "development"}:
+        try:
+            with _teller_tls_client_options() as tls_opts:
+                async with httpx.AsyncClient(timeout=10.0, **tls_opts) as client:
+                    probe = await client.get(
+                        f"{_teller_base_url()}/accounts",
+                        headers={
+                            "Authorization": "Basic " + base64.b64encode(b"probe_token:").decode(),
+                            "Teller-Application-ID": app_id,
+                        },
+                    )
+            if probe.status_code == 401:
+                connectivity_status = "ok"
+                connectivity_detail = "Received expected 401 (unauthenticated probe)"
+            else:
+                connectivity_status = "unexpected"
+                connectivity_detail = f"Teller returned {probe.status_code}: {probe.text[:200]}"
+        except httpx.ConnectError as exc:
+            connectivity_status = "connect_error"
+            connectivity_detail = str(exc)
+        except httpx.HTTPStatusError as exc:
+            connectivity_status = "http_error"
+            connectivity_detail = str(exc)
+        except Exception as exc:
+            connectivity_status = "error"
+            connectivity_detail = str(exc)
+
+    checks["connectivity"] = connectivity_status
+    if connectivity_detail:
+        checks["connectivity_detail"] = connectivity_detail
+
+    # Overall verdict
+    all_ok = (
+        bool(checks.get("app_id_set"))
+        and bool(checks.get("environment_valid"))
+        and (cert_key_differ is not False)  # None = no certs (ok for sandbox)
+        and connectivity_status in {"ok", "skipped"}
+    )
+    checks["overall"] = "pass" if all_ok else "fail"
+
+    return checks

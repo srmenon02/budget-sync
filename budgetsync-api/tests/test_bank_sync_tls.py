@@ -9,6 +9,8 @@ from app.services import bank_sync
 class _FakeResponse:
     def __init__(self, payload):
         self._payload = payload
+        self.status_code = 200
+        self.text = ""
 
     def raise_for_status(self) -> None:
         return None

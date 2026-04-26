@@ -26,3 +26,24 @@ export const seedDevData = async (): Promise<DevSeedResponse> => {
   const { data } = await client.post<DevSeedResponse>('/dev/seed')
   return data
 }
+
+export interface TellerConfigValidation {
+  app_id_set: boolean
+  teller_environment: string
+  environment_valid: boolean
+  cert_b64_present: boolean
+  key_b64_present: boolean
+  cert_valid_base64?: boolean
+  cert_looks_like_pem?: boolean
+  key_valid_base64?: boolean
+  key_looks_like_pem?: boolean
+  cert_and_key_differ?: boolean
+  connectivity: 'ok' | 'skipped' | 'connect_error' | 'http_error' | 'unexpected' | 'error'
+  connectivity_detail?: string
+  overall: 'pass' | 'fail'
+}
+
+export const validateTellerConfig = async (): Promise<TellerConfigValidation> => {
+  const { data } = await client.get<TellerConfigValidation>('/dev/validate-teller-config')
+  return data
+}

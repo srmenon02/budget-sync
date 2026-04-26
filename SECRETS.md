@@ -19,10 +19,15 @@ Use GitHub repository or environment secrets for all sensitive values. Do not st
 - `SUPABASE_JWT_SECRET`
 - `DEV_USER_ID`
 
+### Deployment (Fly.io)
+- `FLY_API_TOKEN`
+- `FLY_APP_NAME`
+
 ## Notes About CI/CD
 
 - `GITHUB_TOKEN` is automatically injected by GitHub Actions and is used for GHCR image pushes and workflow API reads.
 - CD publishes to `ghcr.io/<owner>/budget-sync-api`.
+- CD deploys to Fly.io using `FLY_API_TOKEN` and `FLY_APP_NAME`.
 - Keep production secrets in a protected environment with required reviewers.
 
 ## Rotation Policy
