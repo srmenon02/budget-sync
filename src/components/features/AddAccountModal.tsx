@@ -106,7 +106,7 @@ export function AddAccountModal({ onClose, account }: Props) {
         throw new Error('Teller Connect failed to initialize.')
       }
 
-      const enrollment = await new Promise<TellerConnectEnrollment>((resolve, reject) => {
+      const enrollment = await new Promise<TellerEnrollmentPayload>((resolve, reject) => {
         const connect = window.TellerConnect!.setup({
           applicationId: config.application_id,
           environment: config.environment,
