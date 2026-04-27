@@ -186,9 +186,12 @@ async def validate_teller_config(
                             "Teller-Application-ID": app_id,
                         },
                     )
-            if probe.status_code == 401:
+            if probe.status_code in {401, 403}:
+                # 401 = sandbox (token unrecognised)
+                # 403 = development (mTLS ok, dummy token rejected by format check)
+                # Either means the network + TLS connection to Teller succeeded.
                 connectivity_status = "ok"
-                connectivity_detail = "Received expected 401 (unauthenticated probe)"
+                connectivity_detail = f"Received expected {probe.status_code} (unauthenticated probe — TLS/network ok)"
             else:
                 connectivity_status = "unexpected"
                 connectivity_detail = f"Teller returned {probe.status_code}: {probe.text[:200]}"
@@ -211,7 +214,7 @@ async def validate_teller_config(
         bool(checks.get("app_id_set"))
         and bool(checks.get("environment_valid"))
         and (cert_key_differ is not False)  # None = no certs (ok for sandbox)
-        and connectivity_status in {"ok", "skipped"}
+        and connectivity_status in {"ok", "skipped"}  # 401/403 from Teller both map to "ok"
     )
     checks["overall"] = "pass" if all_ok else "fail"
 
