@@ -1,6 +1,6 @@
 """add institution_name to financial_accounts
 
-Revision ID: 0015_add_institution_name_to_accounts
+Revision ID: 0015_add_institution_name
 Revises: 0014_add_paycheck_number
 Create Date: 2026-04-12
 """
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "0015_add_institution_name_to_accounts"
+revision = "0015_add_institution_name"
 down_revision = "0014_add_paycheck_number"
 branch_labels = None
 depends_on = None
