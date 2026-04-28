@@ -236,6 +236,36 @@ async def fetch_teller_transactions(
     return [row for row in data if isinstance(row, dict)]
 
 
+async def fetch_teller_balance(
+    access_token: str, external_account_id: str
+) -> dict[str, Any] | None:
+    """Fetch balance for a single account from Teller's /accounts/{id}/balances endpoint.
+
+    Teller does NOT include balance data in the /accounts list response — it must
+    be fetched separately per account. Returns a dict with 'ledger' and 'available'
+    string fields, or None on failure.
+    """
+    try:
+        with _teller_tls_client_options() as tls_options:
+            async with httpx.AsyncClient(timeout=20.0, **tls_options) as client:
+                response = await client.get(
+                    f"{_teller_base_url()}/accounts/{external_account_id}/balances",
+                    headers=_auth_headers(access_token),
+                )
+        if response.status_code == 200:
+            data = response.json()
+            return data if isinstance(data, dict) else None
+        logger.warning(
+            "Teller /balances for account %s returned %s",
+            external_account_id,
+            response.status_code,
+        )
+        return None
+    except Exception as exc:
+        logger.warning("fetch_teller_balance failed for %s: %s", external_account_id, exc)
+        return None
+
+
 def _coerce_to_float(value: Any) -> float | None:
     if isinstance(value, (int, float)):
         return float(value)
@@ -378,6 +408,17 @@ async def sync_teller_accounts_for_user(
             )
             credit_limit = _extract_credit_limit(remote)
 
+            # Teller does not include balance in the /accounts response.
+            # Fetch it separately from /accounts/{id}/balances.
+            balance_data = await fetch_teller_balance(token, external_id)
+            balance_current = _extract_balance(balance_data or {})
+            logger.info(
+                "Teller balance for account %s: raw=%s parsed=%s",
+                external_id,
+                balance_data,
+                balance_current,
+            )
+
             local = by_external_id.get(external_id)
             if local is None:
                 local = Account(
@@ -386,7 +427,7 @@ async def sync_teller_accounts_for_user(
                     external_id=external_id,
                     name=str(remote.get("name") or "Connected Account"),
                     type=account_type,
-                    balance_current=_extract_balance(remote),
+                    balance_current=balance_current,
                     currency="USD",
                     account_class=account_class,
                     credit_limit=credit_limit,
@@ -397,7 +438,8 @@ async def sync_teller_accounts_for_user(
             else:
                 local.name = str(remote.get("name") or local.name)
                 local.type = account_type or local.type or "checking"
-                local.balance_current = _extract_balance(remote)
+                if balance_current is not None:
+                    local.balance_current = balance_current
                 local.account_class = account_class
                 local.credit_limit = credit_limit
                 local.teller_access_token_enc = encrypt_teller_access_token(token)

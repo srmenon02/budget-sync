@@ -8,6 +8,7 @@ from ..schemas.account import AccountCreate, AccountUpdate, TellerConnectPayload
 from ..services.bank_sync import (
     encrypt_teller_access_token,
     fetch_teller_accounts,
+    fetch_teller_balance,
     sync_teller_accounts_for_user,
 )
 
@@ -194,7 +195,9 @@ async def connect_teller_account(
             or "Connected Account"
         )
         account_type = str(raw.get("type") or payload.account_type or "checking")
-        balance_current = _extract_balance(raw)
+        # Teller does not include balance in the /accounts response — fetch separately.
+        balance_data = await fetch_teller_balance(payload.access_token, external_id) if external_id else None
+        balance_current = _extract_balance(balance_data or {}) if balance_data else _extract_balance(raw)
         account_class = _infer_account_class(account_type)
         raw_credit_limit = raw.get("credit_limit") or raw.get("limit")
         credit_limit = (
