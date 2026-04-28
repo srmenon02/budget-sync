@@ -102,6 +102,7 @@ async def api_accounts_summary(
                     else None
                 ),
                 "last_synced_at": account.last_synced_at,
+                "institution_name": account.institution_name,
             }
             for account in accounts
         ],

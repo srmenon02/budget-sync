@@ -33,7 +33,7 @@ function AccountCard({ account, index }: { account: FinancialAccount; index: num
       </div>
       <div className="h-px bg-ink-border" />
       <span className={`font-mono text-xs ${account.sync_status === 'ok' || account.sync_status === 'manual' ? 'text-jade' : 'text-parchment-dim'}`}>
-        ● {account.sync_status}
+        ●{' '}{account.sync_status === 'ok' ? 'synced' : account.sync_status === 'manual' ? 'manual' : account.sync_status === 'error' ? 'sync error' : 'pending'}
       </span>
     </div>
   )
