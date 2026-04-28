@@ -39,16 +39,13 @@ function AccountRow({ account }: { account: FinancialAccount }) {
             </Badge>
           </div>
           <span className="font-mono text-xs text-parchment-dim">
-            {account.institution_name || 'Manual'}
+            {account.institution_name || (account.is_manual ? 'Manual' : null)}
             {account.last_four ? ` ····${account.last_four}` : ''}
             {isCredit && account.credit_limit != null ? ` · limit ${fmt(account.credit_limit)}` : ''}
             {isCredit && account.utilization_percent != null ? ` · ${account.utilization_percent.toFixed(1)}% util` : ''}
           </span>
         </div>
         <div className="flex items-center gap-4 shrink-0 ml-4">
-          <span className="font-mono text-xs text-parchment-dim">
-            {account.sync_status}
-          </span>
           <span
             className={`font-display text-xl ${
               balance != null && ((isCredit && balance > 0) || (!isCredit && balance < 0))

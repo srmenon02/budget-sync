@@ -148,11 +148,21 @@ def _extract_balance(account: dict[str, Any]) -> float | None:
             value = balance_data.get(key)
             if isinstance(value, (int, float)):
                 return float(value)
+            if isinstance(value, str):
+                try:
+                    return float(value)
+                except (ValueError, TypeError):
+                    pass
 
     for key in ("ledger", "available", "current", "balance"):
         value = account.get(key)
         if isinstance(value, (int, float)):
             return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                pass
 
     return None
 
@@ -192,6 +202,11 @@ async def connect_teller_account(
             if isinstance(raw_credit_limit, (int, float))
             else None
         )
+        institution_name = (
+            str(raw.get("institution", {}).get("name"))
+            if isinstance(raw.get("institution"), dict) and raw["institution"].get("name")
+            else payload.institution_name or None
+        )
 
         existing = await db.scalar(
             select(Account).where(
@@ -208,6 +223,7 @@ async def connect_teller_account(
                 external_id=external_id,
                 name=name,
                 type=account_type,
+                institution_name=institution_name,
                 balance_current=balance_current,
                 currency="USD",
                 teller_access_token_enc=encrypted_token,
@@ -218,6 +234,7 @@ async def connect_teller_account(
         else:
             existing.name = name
             existing.type = account_type
+            existing.institution_name = institution_name
             existing.balance_current = balance_current
             existing.teller_access_token_enc = encrypted_token
             existing.account_class = account_class

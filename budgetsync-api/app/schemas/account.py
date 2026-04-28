@@ -10,6 +10,7 @@ class AccountCreate(BaseModel):
     external_id: Optional[str] = None
     name: str
     type: Optional[str] = None
+    institution_name: Optional[str] = None
     balance_current: Optional[float] = None
     currency: Optional[str] = "USD"
     account_class: Optional[AccountClass] = None
@@ -55,6 +56,7 @@ class AccountSummaryItem(BaseModel):
     name: str
     type: Optional[str] = None
     provider: Optional[str] = None
+    institution_name: Optional[str] = None
     balance_current: Optional[float] = None
     currency: Optional[str] = None
     account_class: AccountClass

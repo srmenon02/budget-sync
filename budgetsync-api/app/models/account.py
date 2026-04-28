@@ -23,3 +23,4 @@ class Account(Base):
     apr = Column(Numeric(8, 4), nullable=True)
     teller_access_token_enc = Column(Text, nullable=True)
     last_synced_at = Column(String(50), nullable=True)
+    institution_name = Column(String(255), nullable=True)

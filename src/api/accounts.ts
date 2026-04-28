@@ -8,6 +8,7 @@ type AccountApiModel = {
   external_id?: string | null
   name: string
   type?: string | null
+  institution_name?: string | null
   balance_current?: number | null
   currency?: string | null
   account_class?: 'asset' | 'liability'
@@ -41,7 +42,7 @@ function mapAccount(account: AccountApiModel): FinancialAccount {
   return {
     id: account.id,
     owner_id: account.user_id ?? '',
-    institution_name: account.provider ?? 'Manual',
+    institution_name: account.institution_name || null,
     account_name: account.name,
     account_type: accountType,
     account_class: accountClass,
