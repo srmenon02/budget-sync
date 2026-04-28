@@ -129,6 +129,10 @@ export const deleteAccount = async (accountId: string): Promise<void> => {
   await client.delete(`/accounts/${accountId}`)
 }
 
+export const syncAccounts = async (): Promise<void> => {
+  await client.post('/accounts/sync')
+}
+
 export const triggerSync = async (accountId: string): Promise<FinancialAccount> => {
   const { data } = await client.post<FinancialAccount>(`/accounts/${accountId}/sync`)
   return data

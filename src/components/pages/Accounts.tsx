@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAccounts } from '@/components/hooks/useAccounts'
 import { Card, Spinner, Badge, EmptyState } from '@/components/ui'
 import { AddAccountModal } from '@/components/features/AddAccountModal'
-import { deleteAccount } from '@/api/accounts'
+import { deleteAccount, syncAccounts } from '@/api/accounts'
 import type { FinancialAccount } from '@/components/index'
 
 function fmt(n: number) {
@@ -98,6 +98,15 @@ function AccountRow({ account }: { account: FinancialAccount }) {
 export default function Accounts() {
   const { data, isLoading, isError } = useAccounts()
   const [showAdd, setShowAdd] = useState(false)
+  const queryClient = useQueryClient()
+
+  const syncMutation = useMutation({
+    mutationFn: syncAccounts,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'summary'] })
+    },
+  })
 
   const totalAssets = (data ?? [])
     .filter((a) => a.account_class === 'asset')
@@ -119,12 +128,21 @@ export default function Accounts() {
             Accounts
           </h1>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-white hover:bg-gold-dim transition-colors whitespace-nowrap"
-        >
-          + add account
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className="font-mono text-xs px-4 py-2.5 rounded-lg border border-ink-border text-parchment-dim hover:text-parchment hover:border-gold/40 transition-colors whitespace-nowrap disabled:opacity-50"
+          >
+            {syncMutation.isPending ? 'syncing...' : '↻ sync'}
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="font-mono text-xs px-4 py-2.5 rounded-lg bg-gold text-white hover:bg-gold-dim transition-colors whitespace-nowrap"
+          >
+            + add account
+          </button>
+        </div>
       </div>
 
       {showAdd ? <AddAccountModal onClose={() => setShowAdd(false)} /> : null}

@@ -236,6 +236,17 @@ async def fetch_teller_transactions(
     return [row for row in data if isinstance(row, dict)]
 
 
+def _coerce_to_float(value: Any) -> float | None:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            pass
+    return None
+
+
 def _extract_balance(raw_account: dict[str, Any]) -> float | None:
     account_type = str(raw_account.get("type") or "").lower()
     is_liability = account_type in {"credit", "credit_card", "card", "charge", "loan"}
@@ -244,26 +255,26 @@ def _extract_balance(raw_account: dict[str, Any]) -> float | None:
         nested = raw_account.get("balance")
         if isinstance(nested, dict):
             for key in ("ledger", "current", "balance", "available"):
-                value = nested.get(key)
-                if isinstance(value, (int, float)):
-                    return float(value)
+                result = _coerce_to_float(nested.get(key))
+                if result is not None:
+                    return result
         for key in ("ledger", "current", "balance", "available"):
-            value = raw_account.get(key)
-            if isinstance(value, (int, float)):
-                return float(value)
+            result = _coerce_to_float(raw_account.get(key))
+            if result is not None:
+                return result
         return None
 
     for key in ("ledger", "available", "current", "balance"):
-        value = raw_account.get(key)
-        if isinstance(value, (int, float)):
-            return float(value)
+        result = _coerce_to_float(raw_account.get(key))
+        if result is not None:
+            return result
 
     nested = raw_account.get("balance")
     if isinstance(nested, dict):
         for key in ("ledger", "available", "current"):
-            value = nested.get(key)
-            if isinstance(value, (int, float)):
-                return float(value)
+            result = _coerce_to_float(nested.get(key))
+            if result is not None:
+                return result
     return None
 
 
@@ -390,6 +401,9 @@ async def sync_teller_accounts_for_user(
                 local.account_class = account_class
                 local.credit_limit = credit_limit
                 local.teller_access_token_enc = encrypt_teller_access_token(token)
+                institution = remote.get("institution")
+                if isinstance(institution, dict) and institution.get("name"):
+                    local.institution_name = str(institution["name"])
 
             accounts_processed += 1
 

@@ -21,6 +21,7 @@ from ..services.accounts import (
     list_accounts,
     update_account,
 )
+from ..services.bank_sync import sync_teller_accounts_for_user
 
 router = APIRouter()
 
@@ -111,6 +112,19 @@ async def api_accounts_summary(
         "net_worth": net_worth,
         "total_balance": total_balance,
     }
+
+
+@router.post("/sync", status_code=200)
+async def api_sync_accounts(
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        result = await sync_teller_accounts_for_user(db, user_id=current_user["user_id"])
+        return result
+    except Exception as exc:
+        logging.exception("sync-accounts failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}") from exc
 
 
 @router.post("/connect-teller", response_model=AccountRead)
