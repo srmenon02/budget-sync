@@ -9,7 +9,7 @@ export interface User {
 export interface FinancialAccount {
   id: string
   owner_id: string
-  institution_name: string
+  institution_name: string | null
   account_name: string
   account_type: string
   account_class: 'asset' | 'liability'
